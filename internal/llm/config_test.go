@@ -237,7 +237,7 @@ func TestModels_Extraction(t *testing.T) {
 
 func TestMimoBuildHeaders(t *testing.T) {
 	input := map[string]string{"Authorization": "Bearer sk-mimo-123"}
-	result := mimoBuildHeaders(input)
+	result := mimoBuildHeaders(nil, input)
 	if apiKey, ok := result["api-key"]; !ok || apiKey != "sk-mimo-123" {
 		t.Errorf("api-key: got %q", result["api-key"])
 	}
