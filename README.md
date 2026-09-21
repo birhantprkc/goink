@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/Tailwind-4.3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind 4" />
   <img src="https://img.shields.io/badge/ONNX_Runtime-1.26-005BED?style=for-the-badge&logo=onnx&logoColor=white" alt="ONNX Runtime" />
   <img src="https://img.shields.io/badge/license-AGPL_v3-blue?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="AGPL v3" />
+  <a href="THANKS.md"><img src="https://img.shields.io/badge/Sponsors-Thanks-0FDC78?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsors" /></a>
 </p>
 
 <p align="center">
@@ -174,6 +175,7 @@ AI 不会直接改正文。每次编辑系统先生成 Diff，等你批准再写
 <p align="center">
   <img src="assets/outline-demo.png" alt="大纲与章节计划" />
 </p>
+
 ## AI 碰不到不该碰的文件
 
 双层沙箱安全隔离——正则白名单只允许 `chapters/`、`outlines/`、`goink.md` 等合法路径，SafePath 杜绝路径穿越。文件编辑写入前重读对比，防止覆盖你的手动修改。
@@ -230,7 +232,15 @@ Goink is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). S
 
 ## 赞赏
 
-Goink 开发过程中使用了多种 AI 服务（含订阅费用）。如果 Goink 对你有帮助，欢迎赞赏支持，赞赏将用于覆盖开发过程中的 AI 订阅费用。如果方便，建议备注你的 GitHub 用户名，方便我们记住你的支持。
+Goink 开发过程中使用了多种 AI 服务（含订阅费用）。如果 Goink 对你有帮助，欢迎赞赏支持，赞赏将用于覆盖开发过程中的 AI 订阅费用。如果方便，建议备注 GitHub 用户名，备注后默认会出现在[赞赏名单](THANKS.md)中。
+
+<p align="center">
+  <a href="https://github.com/2814899313" title="2814899313">
+    <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
+  </a>
+</p>
+
+<p align="center"><sub>感谢每一位赞赏的朋友，完整名单见 <a href="THANKS.md">THANKS.md</a>。</sub></p>
 
 <p align="center">
   <img src="assets/wechat.jpg" alt="微信赞赏" width="220" />

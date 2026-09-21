@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/Tailwind-4.3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind 4" />
   <img src="https://img.shields.io/badge/ONNX_Runtime-1.26-005BED?style=for-the-badge&logo=onnx&logoColor=white" alt="ONNX Runtime" />
   <img src="https://img.shields.io/badge/license-AGPL_v3-blue?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="AGPL v3" />
+  <a href="THANKS.md"><img src="https://img.shields.io/badge/Sponsors-Thanks-0FDC78?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsors" /></a>
 </p>
 
 <p align="center">
@@ -174,6 +175,7 @@ Every change has Git history. Roll back to any state at any time.
 <p align="center">
   <img src="assets/outline-demo.png" alt="Outline & Chapter Plan" />
 </p>
+
 ## The AI Can't Touch Files It Shouldn't
 
 Dual-layer sandbox security isolation—regex whitelist only allows legitimate paths like `chapters/`, `outlines/`, `goink.md`; SafePath prevents path traversal. Files are re-read and compared before writing to prevent overwriting your manual edits.
@@ -230,7 +232,15 @@ Goink is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). S
 
 ## Donate
 
-Goink development relies on several AI services (including subscription costs). If Goink helps you, donations are welcome—they go toward covering the AI subscription costs during development. If convenient, please note your GitHub username so we can remember your support.
+Goink development relies on several AI services (including subscription costs). If Goink helps you, donations are welcome—they go toward covering the AI subscription costs during development. If convenient, please note your GitHub username—it will appear in the [thank-you list](THANKS.md) by default.
+
+<p align="center">
+  <a href="https://github.com/2814899313" title="2814899313">
+    <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
+  </a>
+</p>
+
+<p align="center"><sub>Thanks to everyone who has donated. Full list: <a href="THANKS.md">THANKS.md</a>.</sub></p>
 
 <p align="center">
   <img src="assets/wechat.jpg" alt="WeChat donate" width="220" />
