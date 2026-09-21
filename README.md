@@ -240,6 +240,9 @@ Goink 开发过程中使用了多种 AI 服务（含订阅费用）。如果 Goi
 </p>
 
 <p align="center">
+  <a href="https://github.com/wind-rainy" title="wind-rainy">
+    <img src="https://avatars.githubusercontent.com/wind-rainy?v=4" width="50" height="50" style="border-radius:50%" alt="wind-rainy" />
+  </a>
   <a href="https://github.com/2814899313" title="2814899313">
     <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
   </a>
