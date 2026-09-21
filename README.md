@@ -235,14 +235,14 @@ Goink is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). S
 Goink 开发过程中使用了多种 AI 服务（含订阅费用）。如果 Goink 对你有帮助，欢迎赞赏支持，赞赏将用于覆盖开发过程中的 AI 订阅费用。如果方便，建议备注 GitHub 用户名，备注后默认会出现在[赞赏名单](THANKS.md)中。
 
 <p align="center">
+  <img src="assets/wechat.jpg" alt="微信赞赏" width="220" />
+  <img src="assets/zfb.jpg" alt="支付宝赞赏" width="220" />
+</p>
+
+<p align="center">
   <a href="https://github.com/2814899313" title="2814899313">
     <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
   </a>
 </p>
 
 <p align="center"><sub>感谢每一位赞赏的朋友，完整名单见 <a href="THANKS.md">THANKS.md</a>。</sub></p>
-
-<p align="center">
-  <img src="assets/wechat.jpg" alt="微信赞赏" width="220" />
-  <img src="assets/zfb.jpg" alt="支付宝赞赏" width="220" />
-</p>

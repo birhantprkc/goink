@@ -235,14 +235,14 @@ Goink is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). S
 Goink development relies on several AI services (including subscription costs). If Goink helps you, donations are welcome—they go toward covering the AI subscription costs during development. If convenient, please note your GitHub username—it will appear in the [thank-you list](THANKS.md) by default.
 
 <p align="center">
+  <img src="assets/wechat.jpg" alt="WeChat donate" width="220" />
+  <img src="assets/zfb.jpg" alt="Alipay donate" width="220" />
+</p>
+
+<p align="center">
   <a href="https://github.com/2814899313" title="2814899313">
     <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
   </a>
 </p>
 
 <p align="center"><sub>Thanks to everyone who has donated. Full list: <a href="THANKS.md">THANKS.md</a>.</sub></p>
-
-<p align="center">
-  <img src="assets/wechat.jpg" alt="WeChat donate" width="220" />
-  <img src="assets/zfb.jpg" alt="Alipay donate" width="220" />
-</p>
