@@ -246,6 +246,9 @@ Goink 开发过程中使用了多种 AI 服务（含订阅费用）。如果 Goi
   <a href="https://github.com/2814899313" title="2814899313">
     <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
   </a>
+  <a href="https://github.com/sz31751796" title="sz31751796">
+    <img src="https://avatars.githubusercontent.com/sz31751796?v=4" width="50" height="50" style="border-radius:50%" alt="sz31751796" />
+  </a>
 </p>
 
 <p align="center"><sub>感谢每一位赞赏的朋友，完整名单见 <a href="THANKS.md">THANKS.md</a>。</sub></p>

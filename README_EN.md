@@ -246,6 +246,9 @@ Goink development relies on several AI services (including subscription costs). 
   <a href="https://github.com/2814899313" title="2814899313">
     <img src="https://avatars.githubusercontent.com/2814899313?v=4" width="50" height="50" style="border-radius:50%" alt="2814899313" />
   </a>
+  <a href="https://github.com/sz31751796" title="sz31751796">
+    <img src="https://avatars.githubusercontent.com/sz31751796?v=4" width="50" height="50" style="border-radius:50%" alt="sz31751796" />
+  </a>
 </p>
 
 <p align="center"><sub>Thanks to everyone who has donated. Full list: <a href="THANKS.md">THANKS.md</a>.</sub></p>
