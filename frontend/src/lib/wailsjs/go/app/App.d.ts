@@ -12,6 +12,7 @@ import {setting} from '../models';
 import {preference} from '../models';
 import {reader} from '../models';
 import {timeline} from '../models';
+import {volume} from '../models';
 import {llm} from '../models';
 import {pattern} from '../models';
 import {git} from '../models';
@@ -66,6 +67,8 @@ export function CreateStyleSample(arg1:app.CreateStyleSampleInput):Promise<style
 
 export function CreateTimelineEntry(arg1:number,arg2:app.CreateTimelineEntryInput):Promise<timeline.TimelineEntry>;
 
+export function CreateVolume(arg1:number,arg2:string):Promise<volume.Volume>;
+
 export function DeleteArcNode(arg1:number,arg2:number):Promise<void>;
 
 export function DeleteCharacter(arg1:number,arg2:number):Promise<void>;
@@ -91,6 +94,8 @@ export function DeleteStoryArc(arg1:number,arg2:number):Promise<void>;
 export function DeleteStyleSample(arg1:app.DeleteStyleSampleInput):Promise<void>;
 
 export function DeleteTimelineEntry(arg1:number,arg2:number):Promise<void>;
+
+export function DeleteVolume(arg1:number,arg2:number):Promise<void>;
 
 export function DiscoverModels(arg1:string,arg2:string,arg3:string):Promise<Array<llm.ModelInfo>>;
 
@@ -164,6 +169,8 @@ export function GetTimelineEntries(arg1:number):Promise<Array<timeline.TimelineE
 
 export function GetVersion():Promise<string>;
 
+export function GetVolumes(arg1:number):Promise<Array<volume.Volume>>;
+
 export function GetWritingActivity(arg1:number):Promise<Array<writing.DailyActivity>>;
 
 export function GetWritingStats():Promise<writing.WritingStats>;
@@ -189,6 +196,8 @@ export function ListStyleSamples(arg1:app.ListStyleSamplesInput):Promise<storage
 export function PickAndImportNovel():Promise<imp.ImportResult>;
 
 export function RebuildNovelIndex(arg1:number):Promise<void>;
+
+export function ReorderVolumes(arg1:number,arg2:Array<number>):Promise<void>;
 
 export function RetryStartup():Promise<void>;
 
@@ -245,3 +254,5 @@ export function UpdateStoryArc(arg1:number,arg2:number,arg3:app.UpdateStoryArcIn
 export function UpdateStyleSample(arg1:app.UpdateStyleSampleInput):Promise<style.Sample>;
 
 export function UpdateTimelineEntry(arg1:number,arg2:number,arg3:app.UpdateTimelineEntryInput):Promise<void>;
+
+export function UpdateVolume(arg1:number,arg2:number,arg3:string):Promise<void>;

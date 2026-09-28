@@ -86,6 +86,10 @@ export function CreateTimelineEntry(arg1, arg2) {
   return window['go']['app']['App']['CreateTimelineEntry'](arg1, arg2);
 }
 
+export function CreateVolume(arg1, arg2) {
+  return window['go']['app']['App']['CreateVolume'](arg1, arg2);
+}
+
 export function DeleteArcNode(arg1, arg2) {
   return window['go']['app']['App']['DeleteArcNode'](arg1, arg2);
 }
@@ -136,6 +140,10 @@ export function DeleteStyleSample(arg1) {
 
 export function DeleteTimelineEntry(arg1, arg2) {
   return window['go']['app']['App']['DeleteTimelineEntry'](arg1, arg2);
+}
+
+export function DeleteVolume(arg1, arg2) {
+  return window['go']['app']['App']['DeleteVolume'](arg1, arg2);
 }
 
 export function DiscoverModels(arg1, arg2, arg3) {
@@ -282,6 +290,10 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
+export function GetVolumes(arg1) {
+  return window['go']['app']['App']['GetVolumes'](arg1);
+}
+
 export function GetWritingActivity(arg1) {
   return window['go']['app']['App']['GetWritingActivity'](arg1);
 }
@@ -332,6 +344,10 @@ export function PickAndImportNovel() {
 
 export function RebuildNovelIndex(arg1) {
   return window['go']['app']['App']['RebuildNovelIndex'](arg1);
+}
+
+export function ReorderVolumes(arg1, arg2) {
+  return window['go']['app']['App']['ReorderVolumes'](arg1, arg2);
 }
 
 export function RetryStartup() {
@@ -444,4 +460,8 @@ export function UpdateStyleSample(arg1) {
 
 export function UpdateTimelineEntry(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateTimelineEntry'](arg1, arg2, arg3);
+}
+
+export function UpdateVolume(arg1, arg2, arg3) {
+  return window['go']['app']['App']['UpdateVolume'](arg1, arg2, arg3);
 }
