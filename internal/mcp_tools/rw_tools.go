@@ -350,7 +350,7 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 		}
 	}
 
-	// DB 记录维护：新建则建记录拿 id；已有且传 title 则更新标题
+	// DB 记录维护：新建则建记录拿 id（已有章节的标题更新延后到正文落盘之后，见下）
 	if ref.IsNew {
 		// 未指定卷：默认最后一卷；整本书无卷则创建未分卷章节。
 		if volumeID == nil {
@@ -369,11 +369,6 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 		ch = created
 		// 物理路径按刚分配的章节 id 重新计算（ref.ID 对新建为 0）
 		physical = physicalRWPath(ref.IsOutline, ch.ID)
-	} else if a.Title != "" && ch.Title != a.Title {
-		if err := chStore.UpdateTitle(ctx, nil, tc.NovelID, ch.ID, a.Title); err != nil {
-			return nil, fmt.Errorf("update chapter title: %w", err)
-		}
-		ch.Title = a.Title
 	}
 
 	// 写入物理文件；新建通道失败时补偿删除刚建的记录
@@ -387,6 +382,19 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 			return &ToolResult{Success: false, Error: "路径非法: " + physical}, nil
 		}
 		return nil, fmt.Errorf("write file: %w", err)
+	}
+
+	// 标题更新放在正文写入成功之后：写文件失败时不会留下「标题已改、正文未写」的不一致状态，
+	// 用户与 AI 看到的标题不会先于正文生效。也必须早于下面的维护链路——
+	// RAG 刷新是异步的，切块时读的是 DB 里的标题。
+	if !ref.IsNew && a.Title != "" && ch.Title != a.Title {
+		if err := chStore.UpdateTitle(ctx, nil, tc.NovelID, ch.ID, a.Title); err != nil {
+			if rollbackErr := git.WriteFile(tc.NovelID, physical, current); rollbackErr != nil {
+				return nil, fmt.Errorf("update chapter title（正文已写入 %s，标题未更新）: %v；回退正文失败: %w", physical, err, rollbackErr)
+			}
+			return nil, fmt.Errorf("update chapter title（正文已回退 %s）: %w", physical, err)
+		}
+		ch.Title = a.Title
 	}
 
 	emitFileChanged(ctx, tc.NovelID, physical)

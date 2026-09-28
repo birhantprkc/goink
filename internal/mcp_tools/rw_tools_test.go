@@ -590,6 +590,85 @@ func TestNewChannel_CompensatesOnWriteFailure(t *testing.T) {
 	}
 }
 
+// 已有章节写正文失败时不得先落库标题：标题只在正文写入成功之后更新，
+// 否则会留下「标题已改、正文未写」的不一致状态。
+func TestExistingChapter_TitleNotPersistedWhenWriteFails(t *testing.T) {
+	db, tc, ctx := setupRWEnv(t)
+	vol := seedVolume(t, db, 1, "第一卷", 1)
+
+	created := execEdit(t, ctx, tc,
+		editArgsTitle(fmt.Sprintf("chapters/%d/new.md", vol), "full_replace", "夜色沉沉。", "夜入皇城"))
+	if !created.Success {
+		t.Fatalf("create chapter failed: %s", created.Error)
+	}
+	id := created.Data["chapter_id"].(int64)
+	path := novelFile(t, 1, fmt.Sprintf("chapters/id_%d.md", id))
+
+	// 只读权限：读取照常成功（能走到写文件那一步），写入必然失败。
+	// Windows 下需还原权限，否则 TempDir 清理会因只读属性失败。
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	res := execEdit(t, ctx, tc,
+		editArgsTitle(fmt.Sprintf("chapters/id_%d.md", id), "full_replace", "新正文。", "新标题"))
+	if res.Success {
+		t.Fatal("expected failure when the chapter file is read-only")
+	}
+
+	got, err := chapter.NewStore(db, slog.New(slog.NewTextHandler(io.Discard, nil))).GetByID(ctx, nil, 1, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "夜入皇城" {
+		t.Errorf("title = %q, want 夜入皇城（写文件失败时不应落库标题）", got.Title)
+	}
+	if got := mustReadFile(t, path); got != "夜色沉沉。" {
+		t.Errorf("file content = %q, want 夜色沉沉。", got)
+	}
+}
+
+// 已有章节标题更新失败时，正文已经写入，必须回退正文，避免留下标题和正文各自处于不同版本的状态。
+func TestExistingChapter_ContentRolledBackWhenTitleUpdateFails(t *testing.T) {
+	db, tc, ctx := setupRWEnv(t)
+	vol := seedVolume(t, db, 1, "第一卷", 1)
+
+	created := execEdit(t, ctx, tc,
+		editArgsTitle(fmt.Sprintf("chapters/%d/new.md", vol), "full_replace", "夜色沉沉。", "夜入皇城"))
+	if !created.Success {
+		t.Fatalf("create chapter failed: %s", created.Error)
+	}
+	id := created.Data["chapter_id"].(int64)
+	path := novelFile(t, 1, fmt.Sprintf("chapters/id_%d.md", id))
+
+	// 用触发器只拒绝标题更新；文件和其他查询仍正常，稳定复现正文已写、标题更新失败的窗口。
+	if err := db.Exec(`CREATE TRIGGER reject_chapter_title_update
+		BEFORE UPDATE OF title ON chapters
+		BEGIN
+			SELECT RAISE(ABORT, 'title update rejected');
+		END`).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	res := execEdit(t, ctx, tc,
+		editArgsTitle(fmt.Sprintf("chapters/id_%d.md", id), "full_replace", "新正文。", "新标题"))
+	if res.Success {
+		t.Fatal("expected failure when title update is rejected")
+	}
+
+	got, err := chapter.NewStore(db, slog.New(slog.NewTextHandler(io.Discard, nil))).GetByID(ctx, nil, 1, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "夜入皇城" {
+		t.Errorf("title = %q, want 夜入皇城", got.Title)
+	}
+	if got := mustReadFile(t, path); got != "夜色沉沉。" {
+		t.Errorf("file content = %q, want 夜色沉沉。", got)
+	}
+}
+
 // ── 通用文件流程回归 ─────────────────────────────────────
 
 // goink.md 不触发章节记录逻辑。
