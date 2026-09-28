@@ -162,6 +162,15 @@ func (a *App) DeleteNovel(novelID int64) error {
 		return fmt.Errorf("delete novel: %w", err)
 	}
 
+	// 向量表在同一个 SQLite 库里，但走独立的 sqlite-vec 连接，不在上面的 gorm 事务内，所以提交后单独 DROP。
+	// 失败只记警告：数据库记录已删除，不能因为派生索引清理失败让用户看到「删除失败」；
+	// 残留向量也不会污染新小说（novels.id 是 AUTOINCREMENT，单调分配、不复用）。
+	if a.vectorStore != nil {
+		if err := a.vectorStore.DeleteNovel(a.ctx, novelID); err != nil {
+			a.logger.Warn("删除小说向量表失败", "novel_id", novelID, "err", err)
+		}
+	}
+
 	if err := os.RemoveAll(safeDir); err != nil {
 		return fmt.Errorf("delete novel dir: %w", err)
 	}
