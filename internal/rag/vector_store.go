@@ -75,6 +75,19 @@ func (s *VectorStore) ensureTable(ctx context.Context, novelID int64) error {
 	return nil
 }
 
+// tableExists 判断小说的向量表是否已创建。
+// vec0 虚拟表同样登记在 sqlite_master 中，用它可以区分「从未索引」与「已建表但为空」，
+// 避免对从未索引的小说执行 DELETE 时报 no such table。
+func (s *VectorStore) tableExists(ctx context.Context, novelID int64) (bool, error) {
+	var n int
+	if err := s.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
+		s.tableName(novelID)).Scan(&n); err != nil {
+		return false, fmt.Errorf("rag: 检查向量表是否存在: %w", err)
+	}
+	return n > 0, nil
+}
+
 // IndexChunks 将文本块批量生成 embedding 并在事务中写入向量表。
 func (s *VectorStore) IndexChunks(ctx context.Context, novelID int64, chunks []Chunk) error {
 	if len(chunks) == 0 {
@@ -281,9 +294,17 @@ func (s *VectorStore) DistinctChapterIDs(ctx context.Context, novelID int64) ([]
 // 典型场景：章节被删除后其向量残留，或迁移期写入的 chapter_id=0 未知归属行。
 // 不触发 DROP/CREATE，直接 DELETE；validChapterIDs 为空时清空整表。
 func (s *VectorStore) DeleteOrphanChunks(ctx context.Context, novelID int64, validChapterIDs []int64) error {
+	exists, err := s.tableExists(ctx, novelID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	tableName := s.tableName(novelID)
 	if len(validChapterIDs) == 0 {
-		_, err := s.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tableName))
+		_, err = s.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tableName))
 		if err != nil {
 			return fmt.Errorf("rag: clear orphan chunks for novel %d: %w", novelID, err)
 		}

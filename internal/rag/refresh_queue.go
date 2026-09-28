@@ -301,6 +301,11 @@ func (q *RefreshQueue) rebuildNovelIfIncomplete(ctx context.Context, novelID int
 		return fmt.Errorf("rag: list chapters: %w", err)
 	}
 	if len(chapters) == 0 {
+		// 无章节：写盘失败过或章节被全删时可能留下整表孤儿向量，清空。
+		// DeleteOrphanChunks 对从未创建的向量表是 no-op。
+		if err := q.vs.DeleteOrphanChunks(ctx, novelID, nil); err != nil {
+			q.logger.Warn("清理孤儿向量失败", "novel_id", novelID, "err", err)
+		}
 		return nil
 	}
 
