@@ -676,6 +676,25 @@ func TestExistingChapter_ContentRolledBackWhenTitleUpdateFails(t *testing.T) {
 	}
 }
 
+func TestNewChapter_VolumeQueryFailureIsSystemError(t *testing.T) {
+	db, tc, ctx := setupRWEnv(t)
+	if err := db.Migrator().DropTable(&volume.Volume{}); err != nil {
+		t.Fatal(err)
+	}
+
+	res := execEdit(t, ctx, tc,
+		editArgsTitle("chapters/999/new.md", "full_replace", "新正文。", "新标题"))
+	if res.Success {
+		t.Fatal("expected volume query failure")
+	}
+	if res.ErrKind != mcp_tools.ErrKindSystem {
+		t.Errorf("ErrKind = %q, want %q", res.ErrKind, mcp_tools.ErrKindSystem)
+	}
+	if !strings.Contains(res.Error, "query volume") {
+		t.Errorf("Error = %q, want volume query context", res.Error)
+	}
+}
+
 // ── 通用文件流程回归 ─────────────────────────────────────
 
 // goink.md 不触发章节记录逻辑。

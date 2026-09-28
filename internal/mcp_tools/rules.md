@@ -62,7 +62,7 @@ type XxxArgs struct {
 | 意外异常（DB、磁盘、网络） | 包装 error；若部分操作已完成，先写明已确认状态，再包装根因 | `return nil, fmt.Errorf("正文已回退，标题未更新: %w", err)` |
 | 参数校验 | 不手写。Registry 统一用 `validate.Struct()` 执行，工具拿到时已是合法值 | — |
 
-`Registry.Execute()` 收到 `err != nil` 后记录完整错误，并返回 `ErrKind: "system"`。LLM 看到的是“工具执行失败：”加上 error 的单行摘要，最多 300 个字符；摘要保留工具包装的状态说明和短原因，完整错误不进入对话。工具不需要自行截断，也不要手工构造 system `ToolResult`。
+`Registry.Execute()` 会将所有返回给 LLM 的错误文本压成单行、最多 300 个字符。业务/参数 `ToolResult.Error` 只保留原文摘要；收到 `err != nil` 时会记录完整错误、返回 `ErrKind: "system"`，且 LLM 看到的是“工具执行失败：”加上状态说明和短原因。工具不需要自行截断，也不要手工构造 system `ToolResult`。
 
 不要按“底层是否使用了 DB”划分：`gorm.ErrRecordNotFound`、可预期的唯一约束或状态冲突都应转换成业务结果；`database is locked`、磁盘满、超时等未知依赖故障必须返回 error。工具不要 `recover()` 包裹 `Execute()` 方法体。
 

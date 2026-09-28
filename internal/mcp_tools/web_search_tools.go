@@ -3,6 +3,7 @@ package mcp_tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 )
 
 // WebSearchArgs 是 web_search 工具的参数。
@@ -37,7 +38,7 @@ func (t *WebSearchTool) Execute(ctx context.Context, args any, tc ToolContext) (
 
 	result, err := tc.WebSearch(ctx, a.Prompt)
 	if err != nil {
-		return &ToolResult{Error: "搜索失败: " + err.Error()}, nil
+		return nil, fmt.Errorf("搜索失败: %w", err)
 	}
 
 	return &ToolResult{

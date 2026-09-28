@@ -66,6 +66,9 @@ func (t *UpsertSettingTool) Execute(ctx context.Context, args any, tc ToolContex
 		if failed == nil {
 			return nil, fmt.Errorf("upsert setting: %w", err)
 		}
+		if !isBusinessError(failed.err) {
+			return nil, fmt.Errorf("upsert setting 第 %d 条 [%s]（事务已回滚）: %w", failed.index, failed.category, failed.err)
+		}
 		return &ToolResult{
 			Success: false,
 			Error:   fmt.Sprintf("第 %d 条设定 [%s] 失败: %s", failed.index, failed.category, failed.err),
@@ -86,13 +89,13 @@ func upsertOneSetting(tx *gorm.DB, novelID int64, item UpsertSettingItem) (int64
 		var existing setting.SettingItem
 		if err := tx.First(&existing, *item.SettingID).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				return 0, fmt.Errorf("设定条目 %d 不存在", *item.SettingID)
+				return 0, businessErrorf("设定条目 %d 不存在", *item.SettingID)
 			}
 			return 0, fmt.Errorf("query setting: %w", err)
 		}
 		// 归属校验：只能改当前小说的设定
 		if existing.NovelID != novelID {
-			return 0, fmt.Errorf("设定条目 %d 不属于当前小说", *item.SettingID)
+			return 0, businessErrorf("设定条目 %d 不属于当前小说", *item.SettingID)
 		}
 		// PATCH 覆盖（值字段 required 总传值，这里仍保留 if 判断以兼容"前端只传部分字段"的旧调用方）
 		if item.Category != "" {

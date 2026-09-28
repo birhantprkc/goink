@@ -276,7 +276,10 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 		if ref.VolumeID != 0 {
 			v, err := volume.NewStore(tc.DB, tc.LoggerOrDefault()).GetByID(ctx, nil, tc.NovelID, ref.VolumeID)
 			if err != nil {
-				return &ToolResult{Success: false, Error: err.Error()}, nil
+				if errors.Is(err, volume.ErrNotFound) {
+					return &ToolResult{Success: false, Error: err.Error()}, nil
+				}
+				return nil, fmt.Errorf("query volume: %w", err)
 			}
 			volumeID = &v.ID
 		}

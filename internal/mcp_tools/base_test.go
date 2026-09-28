@@ -13,7 +13,8 @@ import (
 type systemErrorTestArgs struct{}
 
 type systemErrorTestTool struct {
-	err error
+	err    error
+	result *ToolResult
 }
 
 func (t systemErrorTestTool) Name() string           { return "system_error_test" }
@@ -25,7 +26,30 @@ func (t systemErrorTestTool) JSONSchema() json.RawMessage {
 func (t systemErrorTestTool) ExposeToLLM() bool { return false }
 func (t systemErrorTestTool) NewArgs() any      { return &systemErrorTestArgs{} }
 func (t systemErrorTestTool) Execute(context.Context, any, ToolContext) (*ToolResult, error) {
-	return nil, t.err
+	return t.result, t.err
+}
+
+func TestRegistryExecute_CompactsToolResultError(t *testing.T) {
+	reg := NewRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	detail := "文件已被修改，请重新读取\n" + strings.Repeat("x", maxSystemErrorDetailRunes+1)
+	reg.Register(systemErrorTestTool{result: &ToolResult{Success: false, Error: detail}})
+
+	result := reg.Execute(context.Background(), "system_error_test", []byte(`{}`), ToolContext{}, nil)
+	if result.Success {
+		t.Fatal("expected failure")
+	}
+	if result.ErrKind != ErrKindBusiness {
+		t.Errorf("ErrKind = %q, want business kind", result.ErrKind)
+	}
+	if strings.Contains(result.Error, "\n") {
+		t.Errorf("Error contains newline: %q", result.Error)
+	}
+	if !strings.HasPrefix(result.Error, "文件已被修改，请重新读取 x") {
+		t.Errorf("Error = %q, want compacted ToolResult detail", result.Error)
+	}
+	if !strings.HasSuffix(result.Error, "…") {
+		t.Errorf("Error = %q, want truncation marker", result.Error)
+	}
 }
 
 func TestRegistryExecute_SystemErrorIncludesCompactDetail(t *testing.T) {
