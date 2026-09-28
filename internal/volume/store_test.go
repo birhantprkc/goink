@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -254,6 +255,25 @@ func TestVolumeReorderRejectsPartial(t *testing.T) {
 	}
 	if err := s.Reorder(ctx, nil, 1, []int64{v1.ID, foreign.ID}); err == nil {
 		t.Error("foreign volume in reorder should fail")
+	}
+}
+
+// Reorder 传入重复 id 报错。数量与全部卷数量相等时会绕过数量校验，必须单独查重。
+func TestVolumeReorderRejectsDuplicate(t *testing.T) {
+	db := openVolDB(t)
+	ctx := context.Background()
+	s := newTestStore(db)
+	v1 := mustCreate(t, db, 1, "第一卷")
+	v2 := mustCreate(t, db, 1, "第二卷")
+	mustCreate(t, db, 1, "第三卷")
+
+	err := s.Reorder(ctx, nil, 1, []int64{v1.ID, v1.ID, v2.ID})
+	if err == nil {
+		t.Fatal("duplicate volume id in reorder should fail")
+	}
+	// 必须是查重拦下的，不能是靠 (novel_id, sort_order) 唯一索引在第二阶段兜底报错。
+	if !strings.Contains(err.Error(), "重复") {
+		t.Errorf("error = %v, want 重复", err)
 	}
 }
 

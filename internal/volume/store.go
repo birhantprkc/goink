@@ -174,7 +174,7 @@ func (s *Store) LastByNovel(ctx context.Context, tx *gorm.DB, novelID int64) (*V
 
 // Reorder 按传入顺序重排全部卷的 sort_order（1-based）。
 //
-// volumeIDs 必须是该小说全部卷的 id 集合（全量重排），缺漏或混入他卷都报错。
+// volumeIDs 必须是该小说全部卷的 id 集合（全量重排），缺漏、重复或混入他卷都报错。
 // 两阶段写入：先把全部目标卷挪到负数区，再写目标值——
 // 否则逐个改写会与 (novel_id, sort_order) 唯一索引冲突。
 func (s *Store) Reorder(ctx context.Context, tx *gorm.DB, novelID int64, volumeIDs []int64) error {
@@ -192,10 +192,15 @@ func (s *Store) Reorder(ctx context.Context, tx *gorm.DB, novelID int64, volumeI
 		for _, v := range existing {
 			valid[v.ID] = true
 		}
+		seen := make(map[int64]bool, len(volumeIDs))
 		for _, id := range volumeIDs {
 			if !valid[id] {
 				return fmt.Errorf("volume store: reorder 传入的卷 %d 不属于该小说", id)
 			}
+			if seen[id] {
+				return fmt.Errorf("volume store: reorder 传入的卷 %d 重复", id)
+			}
+			seen[id] = true
 		}
 
 		// 阶段 1：全部挪到负数区，腾空正数区
