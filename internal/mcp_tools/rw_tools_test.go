@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -655,6 +656,12 @@ func TestExistingChapter_ContentRolledBackWhenTitleUpdateFails(t *testing.T) {
 		editArgsTitle(fmt.Sprintf("chapters/id_%d.md", id), "full_replace", "新正文。", "新标题"))
 	if res.Success {
 		t.Fatal("expected failure when title update is rejected")
+	}
+	if res.ErrKind != mcp_tools.ErrKindSystem {
+		t.Errorf("ErrKind = %q, want %q", res.ErrKind, mcp_tools.ErrKindSystem)
+	}
+	if !strings.Contains(res.Error, "正文已回退") {
+		t.Errorf("Error = %q, want confirmed rollback state for LLM", res.Error)
 	}
 
 	got, err := chapter.NewStore(db, slog.New(slog.NewTextHandler(io.Discard, nil))).GetByID(ctx, nil, 1, id)

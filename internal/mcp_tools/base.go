@@ -98,6 +98,25 @@ type ToolResult struct {
 	Inject   []InjectMessage `json:"inject,omitempty"`
 }
 
+const maxSystemErrorDetailRunes = 300
+
+// systemErrorResult 将意外执行错误转换为可供 LLM 理解的受限摘要。
+// 完整错误只写入日志；摘要保留工具包装的状态说明和底层原因，避免模型盲目重试。
+func systemErrorResult(err error) *ToolResult {
+	detail := strings.Join(strings.Fields(err.Error()), " ")
+	if runes := []rune(detail); len(runes) > maxSystemErrorDetailRunes {
+		detail = string(runes[:maxSystemErrorDetailRunes]) + "…"
+	}
+	if detail == "" {
+		detail = "未提供错误详情"
+	}
+	return &ToolResult{
+		Success: false,
+		Error:   "工具执行失败：" + detail,
+		ErrKind: ErrKindSystem,
+	}
+}
+
 // InjectMessage 由工具返回，agent loop 会后追加到对话流。固定 to_api=true, to_frontend=false。
 type InjectMessage struct {
 	Role    string `json:"role"` // "user" | "system"
@@ -264,7 +283,7 @@ func (r *Registry) Execute(ctx context.Context, name string, rawArgs json.RawMes
 
 	if execErr != nil {
 		r.logger.Error("tool execution failed", "tool", name, "error", execErr, "elapsed_ms", time.Since(t0).Milliseconds())
-		return &ToolResult{Success: false, Error: "服务器内部错误，请稍后重试", ErrKind: ErrKindSystem}
+		return systemErrorResult(execErr)
 	}
 
 	if result != nil {
