@@ -1,21 +1,5 @@
 export namespace app {
 	
-	export class ChapterReference {
-	    kind: string;
-	    id: number;
-	    label: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ChapterReference(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.kind = source["kind"];
-	        this.id = source["id"];
-	        this.label = source["label"];
-	    }
-	}
 	export class ChatInput {
 	    session_id: string;
 	    novel_id: number;
@@ -327,38 +311,6 @@ export namespace app {
 	        this.source_chapter_id = source["source_chapter_id"];
 	        this.source = source["source"];
 	    }
-	}
-	export class DeleteChapterResult {
-	    deleted: boolean;
-	    references: ChapterReference[];
-	
-	    static createFrom(source: any = {}) {
-	        return new DeleteChapterResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.deleted = source["deleted"];
-	        this.references = this.convertValues(source["references"], ChapterReference);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class DeleteSkillInput {
 	    novel_id: number;
@@ -1061,6 +1013,54 @@ export namespace chapter {
 	        this.updated_at = this.convertValues(source["updated_at"], null);
 	        this.file_path = source["file_path"];
 	        this.reading_number = source["reading_number"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ChapterReference {
+	    kind: string;
+	    id: number;
+	    label: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChapterReference(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.id = source["id"];
+	        this.label = source["label"];
+	    }
+	}
+	export class DeleteResult {
+	    deleted: boolean;
+	    references: ChapterReference[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DeleteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.deleted = source["deleted"];
+	        this.references = this.convertValues(source["references"], ChapterReference);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

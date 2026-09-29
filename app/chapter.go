@@ -36,19 +36,6 @@ type CreateChapterInput struct {
 // TargetVolumeID 为空表示未分卷组，BeforeChapterID 为空表示追加到该组末尾。
 type PlaceChapterInput = chapter.PlaceInput
 
-// ChapterReference 是阻止删除章节的一条交叉引用。
-type ChapterReference struct {
-	Kind  string `json:"kind"`
-	ID    int64  `json:"id"`
-	Label string `json:"label"`
-}
-
-// DeleteChapterResult 描述章节删除的结果。References 非空时 Deleted 为 false。
-type DeleteChapterResult struct {
-	Deleted    bool               `json:"deleted"`
-	References []ChapterReference `json:"references"`
-}
-
 // ── 章节 ──────────────────────────────────────────────────
 
 // GetChapters 返回指定小说的章节列表，含文件路径。
@@ -83,14 +70,6 @@ func (a *App) PlaceChapter(input PlaceChapterInput) (*chapter.Chapter, error) {
 }
 
 // DeleteChapter 删除没有交叉引用的章节及其正文、大纲与派生索引。
-func (a *App) DeleteChapter(novelID, chapterID int64) (*DeleteChapterResult, error) {
-	result, err := a.chapterService.Delete(a.ctx, novelID, chapterID)
-	if err != nil {
-		return nil, err
-	}
-	refs := make([]ChapterReference, len(result.References))
-	for i, ref := range result.References {
-		refs[i] = ChapterReference{Kind: ref.Kind, ID: ref.ID, Label: ref.Label}
-	}
-	return &DeleteChapterResult{Deleted: result.Deleted, References: refs}, nil
+func (a *App) DeleteChapter(novelID, chapterID int64) (*chapter.DeleteResult, error) {
+	return a.chapterService.Delete(a.ctx, novelID, chapterID)
 }

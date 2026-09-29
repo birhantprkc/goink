@@ -71,7 +71,7 @@ export function CreateVolume(arg1:number,arg2:string):Promise<volume.Volume>;
 
 export function DeleteArcNode(arg1:number,arg2:number):Promise<void>;
 
-export function DeleteChapter(arg1:number,arg2:number):Promise<app.DeleteChapterResult>;
+export function DeleteChapter(arg1:number,arg2:number):Promise<chapter.DeleteResult>;
 
 export function DeleteCharacter(arg1:number,arg2:number):Promise<void>;
 

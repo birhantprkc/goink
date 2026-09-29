@@ -21,8 +21,8 @@ type ChapterCacheInvalidator interface {
 
 // DeleteResult 描述章节删除的结果。References 非空时 Deleted 为 false。
 type DeleteResult struct {
-	Deleted    bool
-	References []ChapterReference
+	Deleted    bool               `json:"deleted"`
+	References []ChapterReference `json:"references"`
 }
 
 // Service 编排章节用例涉及的数据库、Git 文件与派生数据生命周期。

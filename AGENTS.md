@@ -14,6 +14,7 @@ Goink 是一个使用 Wails（Go + React）的桌面 AI 网文写作助手。用
 - Commit message 使用英文、具体描述、无 emoji、无 `Co-Authored-By`，必须遵循 Conventional Commits：`<type>(<optional-scope>): <description>`。
 - 允许的 type 只有：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`、`revert`。
 - Commit message 必须包含 subject 和 body；subject 后空一行，再用 body 说明改了什么以及为什么改，不能只有 subject。
+- 需要多段 commit message 时，必须以 `git commit -F - <<'EOF'` heredoc 传入真实换行；不要在 `-m` 字符串中写字面量 `\\n`。
 - Issue 引用使用 body 末尾的 `Refs #NN`，不要使用 `fixes`、`closes` 或 `resolves`，除非用户明确要求关闭 issue。
 
 ## 开发流程与授权边界

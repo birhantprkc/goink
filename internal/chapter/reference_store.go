@@ -14,9 +14,9 @@ import (
 
 // ChapterReference 是阻止删除章节的一条跨领域引用。
 type ChapterReference struct {
-	Kind  string
-	ID    int64
-	Label string
+	Kind  string `json:"kind"`
+	ID    int64  `json:"id"`
+	Label string `json:"label"`
 }
 
 // ReferenceStore 查询指向章节的跨领域引用。
