@@ -3,6 +3,9 @@ package app
 import (
 	"fmt"
 
+	"gorm.io/gorm"
+
+	"github.com/sigpanic/goink/internal/git"
 	"github.com/sigpanic/goink/internal/volume"
 )
 
@@ -27,10 +30,15 @@ func (a *App) UpdateVolume(novelID, volumeID int64, name string) error {
 
 // DeleteVolume 删除指定小说中的空卷。
 func (a *App) DeleteVolume(novelID, volumeID int64) error {
-	if err := a.volume.Delete(a.ctx, nil, novelID, volumeID); err != nil {
-		return fmt.Errorf("delete volume: %w", err)
-	}
-	return nil
+	return a.db.WithContext(a.ctx).Transaction(func(tx *gorm.DB) error {
+		if err := a.volume.Delete(a.ctx, tx, novelID, volumeID); err != nil {
+			return fmt.Errorf("delete volume: %w", err)
+		}
+		if err := git.RemoveFile(novelID, git.VolumePath(volumeID)); err != nil {
+			return fmt.Errorf("卷已删除，但清理卷纲失败: %w", err)
+		}
+		return nil
+	})
 }
 
 // GetVolumes 返回指定小说的全部卷，按阅读顺序排列。

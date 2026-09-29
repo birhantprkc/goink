@@ -339,7 +339,7 @@ AI 对已发生章节调用工具时直接传 `*_chapter_id`，工具内不做 n
 app 层：
 - `PlaceVolume(input PlaceVolumeInput) (*Volume, error)` — 创建新卷或将已有卷放到 `before_volume_id` 前；空锚点表示末尾
 - `UpdateVolume(volumeID int64, name string) error`
-- `DeleteVolume(volumeID int64) error` — 删前检查是否有关联章节，有则拒绝
+- `DeleteVolume(volumeID int64) error` — 删前检查是否有关联章节，有则拒绝；成功时清理可选卷纲文件
 - `GetVolumes(novelID int64) ([]Volume, error)`
 
 AI 通道（经 rw_tools，非 mcp_tool）：
