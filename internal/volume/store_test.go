@@ -3,9 +3,9 @@ package volume
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -54,11 +54,15 @@ func seedChapter(t *testing.T, db *gorm.DB, novelID int64, volumeID *int64, sort
 	}
 }
 
-func mustCreate(t *testing.T, db *gorm.DB, novelID int64, name string) *Volume {
+func mustPlace(t *testing.T, db *gorm.DB, novelID int64, name string, beforeVolumeID *int64) *Volume {
 	t.Helper()
-	v, err := newTestStore(db).Create(context.Background(), nil, novelID, name)
+	v, err := newTestStore(db).Place(context.Background(), nil, PlaceInput{
+		NovelID:        novelID,
+		Name:           &name,
+		BeforeVolumeID: beforeVolumeID,
+	})
 	if err != nil {
-		t.Fatalf("create volume %q: %v", name, err)
+		t.Fatalf("place volume %q: %v", name, err)
 	}
 	return v
 }
@@ -83,37 +87,36 @@ func chapterSorts(t *testing.T, db *gorm.DB, novelID int64) map[int64]int {
 
 // ── CRUD ─────────────────────────────────────────────────
 
-// Create 追加到末尾，sort_order 递增。
-func TestVolumeCreateAppends(t *testing.T) {
+// Place 创建卷时可追加到末尾，sort_order 递增。
+func TestVolumePlaceCreatesAtEnd(t *testing.T) {
 	db := openVolDB(t)
-	s := newTestStore(db)
 
-	v1 := mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
+	v1 := mustPlace(t, db, 1, "第一卷", nil)
+	v2 := mustPlace(t, db, 1, "第二卷", nil)
 
 	if v1.SortOrder != 1 || v2.SortOrder != 2 {
 		t.Errorf("sort_order = %d/%d, want 1/2", v1.SortOrder, v2.SortOrder)
 	}
 	// 其他小说互不影响
-	v3 := mustCreate(t, db, 2, "别家卷")
+	v3 := mustPlace(t, db, 2, "别家卷", nil)
 	if v3.SortOrder != 1 {
 		t.Errorf("novel 2 sort_order = %d, want 1", v3.SortOrder)
 	}
-	_ = s
 }
 
 // 同一小说内卷名不可重复。
-func TestVolumeCreateDuplicateName(t *testing.T) {
+func TestVolumePlaceRejectsDuplicateName(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	mustCreate(t, db, 1, "第一卷")
+	mustPlace(t, db, 1, "第一卷", nil)
+	name := "第一卷"
 
-	if _, err := s.Create(ctx, nil, 1, "第一卷"); !errors.Is(err, ErrNameTaken) {
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1, Name: &name}); !errors.Is(err, ErrNameTaken) {
 		t.Errorf("err = %v, want ErrNameTaken", err)
 	}
 	// 不同小说可用同名
-	if _, err := s.Create(ctx, nil, 2, "第一卷"); err != nil {
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 2, Name: &name}); err != nil {
 		t.Errorf("other novel same name should succeed, got %v", err)
 	}
 }
@@ -122,7 +125,7 @@ func TestVolumeCreateDuplicateName(t *testing.T) {
 func TestVolumeGetByIDForeignNovel(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
-	v := mustCreate(t, db, 1, "第一卷")
+	v := mustPlace(t, db, 1, "第一卷", nil)
 
 	if _, err := newTestStore(db).GetByID(ctx, nil, 2, v.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("err = %v, want ErrNotFound", err)
@@ -134,8 +137,8 @@ func TestVolumeUpdate(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v1 := mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
+	v1 := mustPlace(t, db, 1, "第一卷", nil)
+	v2 := mustPlace(t, db, 1, "第二卷", nil)
 
 	if err := s.Update(ctx, nil, 1, v1.ID, "卷一"); err != nil {
 		t.Fatalf("rename: %v", err)
@@ -159,7 +162,7 @@ func TestVolumeUpdate(t *testing.T) {
 func TestVolumeDeleteRefusesWhenHasChapters(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
-	v := mustCreate(t, db, 1, "第一卷")
+	v := mustPlace(t, db, 1, "第一卷", nil)
 	vid := v.ID
 	seedChapter(t, db, 1, &vid, 1)
 
@@ -173,7 +176,7 @@ func TestVolumeDeleteEmpty(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v := mustCreate(t, db, 1, "第一卷")
+	v := mustPlace(t, db, 1, "第一卷", nil)
 
 	if err := s.Delete(ctx, nil, 1, v.ID); err != nil {
 		t.Fatalf("delete: %v", err)
@@ -193,8 +196,8 @@ func TestVolumeListAndLast(t *testing.T) {
 		t.Errorf("empty novel last = %v, err = %v, want nil/nil", last, err)
 	}
 
-	mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
+	mustPlace(t, db, 1, "第一卷", nil)
+	v2 := mustPlace(t, db, 1, "第二卷", nil)
 
 	list, err := s.ListByNovel(ctx, nil, 1)
 	if err != nil {
@@ -213,67 +216,75 @@ func TestVolumeListAndLast(t *testing.T) {
 	}
 }
 
-// ── Reorder ──────────────────────────────────────────────
+// ── Place 移动 ────────────────────────────────────────────
 
-// Reorder 全量重排，与唯一索引不冲突。
-func TestVolumeReorder(t *testing.T) {
+// Place 可在锚点前移动已有卷，也可在锚点前创建新卷；两种操作均不触发唯一索引冲突。
+func TestVolumePlaceMovesAndInserts(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v1 := mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
-	v3 := mustCreate(t, db, 1, "第三卷")
+	v1 := mustPlace(t, db, 1, "第一卷", nil)
+	v3 := mustPlace(t, db, 1, "第三卷", nil)
+	v2 := mustPlace(t, db, 1, "第二卷", &v3.ID)
 
-	// 反转顺序
-	if err := s.Reorder(ctx, nil, 1, []int64{v3.ID, v2.ID, v1.ID}); err != nil {
-		t.Fatalf("reorder: %v", err)
+	if err := assertVolumeOrder(ctx, s, 1, []int64{v1.ID, v2.ID, v3.ID}); err != nil {
+		t.Fatal(err)
 	}
 
-	list, _ := s.ListByNovel(ctx, nil, 1)
-	want := []int64{v3.ID, v2.ID, v1.ID}
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1, SourceVolumeID: &v3.ID, BeforeVolumeID: &v1.ID}); err != nil {
+		t.Fatalf("move before: %v", err)
+	}
+	if err := assertVolumeOrder(ctx, s, 1, []int64{v3.ID, v1.ID, v2.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1, SourceVolumeID: &v1.ID}); err != nil {
+		t.Fatalf("move to end: %v", err)
+	}
+	if err := assertVolumeOrder(ctx, s, 1, []int64{v3.ID, v2.ID, v1.ID}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertVolumeOrder(ctx context.Context, s *Store, novelID int64, want []int64) error {
+	list, err := s.ListByNovel(ctx, nil, novelID)
+	if err != nil {
+		return err
+	}
+	if len(list) != len(want) {
+		return fmt.Errorf("list length = %d, want %d", len(list), len(want))
+	}
 	for i, v := range list {
 		if v.ID != want[i] {
-			t.Errorf("position %d = id %d, want %d", i, v.ID, want[i])
+			return fmt.Errorf("position %d = id %d, want %d", i, v.ID, want[i])
 		}
 		if v.SortOrder != i+1 {
-			t.Errorf("position %d sort_order = %d, want %d", i, v.SortOrder, i+1)
+			return fmt.Errorf("position %d sort_order = %d, want %d", i, v.SortOrder, i+1)
 		}
 	}
+	return nil
 }
 
-// Reorder 缺漏或混入他卷都报错。
-func TestVolumeReorderRejectsPartial(t *testing.T) {
+// Place 校验创建/移动互斥参数与卷归属。
+func TestVolumePlaceRejectsInvalidInput(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v1 := mustCreate(t, db, 1, "第一卷")
-	mustCreate(t, db, 1, "第二卷")
-	foreign := mustCreate(t, db, 2, "别家卷")
+	v1 := mustPlace(t, db, 1, "第一卷", nil)
+	foreign := mustPlace(t, db, 2, "别家卷", nil)
+	name := "新卷"
 
-	if err := s.Reorder(ctx, nil, 1, []int64{v1.ID}); err == nil {
-		t.Error("partial reorder should fail")
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1}); err == nil {
+		t.Error("create without name should fail")
 	}
-	if err := s.Reorder(ctx, nil, 1, []int64{v1.ID, foreign.ID}); err == nil {
-		t.Error("foreign volume in reorder should fail")
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1, SourceVolumeID: &v1.ID, Name: &name}); err == nil {
+		t.Error("move with name should fail")
 	}
-}
-
-// Reorder 传入重复 id 报错。数量与全部卷数量相等时会绕过数量校验，必须单独查重。
-func TestVolumeReorderRejectsDuplicate(t *testing.T) {
-	db := openVolDB(t)
-	ctx := context.Background()
-	s := newTestStore(db)
-	v1 := mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
-	mustCreate(t, db, 1, "第三卷")
-
-	err := s.Reorder(ctx, nil, 1, []int64{v1.ID, v1.ID, v2.ID})
-	if err == nil {
-		t.Fatal("duplicate volume id in reorder should fail")
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1, SourceVolumeID: &foreign.ID}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("foreign source error = %v, want ErrNotFound", err)
 	}
-	// 必须是查重拦下的，不能是靠 (novel_id, sort_order) 唯一索引在第二阶段兜底报错。
-	if !strings.Contains(err.Error(), "重复") {
-		t.Errorf("error = %v, want 重复", err)
+	if _, err := s.Place(ctx, nil, PlaceInput{NovelID: 1, SourceVolumeID: &v1.ID, BeforeVolumeID: &foreign.ID}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("foreign anchor error = %v, want ErrNotFound", err)
 	}
 }
 
@@ -305,8 +316,8 @@ func TestAllocateAppendsWithinVolume(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v1 := mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
+	v1 := mustPlace(t, db, 1, "第一卷", nil)
+	v2 := mustPlace(t, db, 1, "第二卷", nil)
 	seedChapter(t, db, 1, &v1.ID, 1)
 	seedChapter(t, db, 1, &v2.ID, 2)
 
@@ -339,8 +350,8 @@ func TestAllocateEmptyVolumeAfterExisting(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v1 := mustCreate(t, db, 1, "第一卷")
-	v2 := mustCreate(t, db, 1, "第二卷")
+	v1 := mustPlace(t, db, 1, "第一卷", nil)
+	v2 := mustPlace(t, db, 1, "第二卷", nil)
 	seedChapter(t, db, 1, &v1.ID, 1)
 	seedChapter(t, db, 1, &v1.ID, 2)
 
@@ -366,7 +377,7 @@ func TestAllocateEmptyVolumeAfterUnassigned(t *testing.T) {
 	s := newTestStore(db)
 	seedChapter(t, db, 1, nil, 1)
 	seedChapter(t, db, 1, nil, 2)
-	v := mustCreate(t, db, 1, "新卷")
+	v := mustPlace(t, db, 1, "新卷", nil)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		pos, err := s.AllocateChapterSortOrder(ctx, tx, 1, &v.ID)
@@ -388,7 +399,7 @@ func TestAllocateUnassigned(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	v := mustCreate(t, db, 1, "第一卷")
+	v := mustPlace(t, db, 1, "第一卷", nil)
 	seedChapter(t, db, 1, &v.ID, 100)
 	seedChapter(t, db, 1, nil, 2)
 
@@ -412,7 +423,7 @@ func TestAllocateUnknownVolume(t *testing.T) {
 	db := openVolDB(t)
 	ctx := context.Background()
 	s := newTestStore(db)
-	foreign := mustCreate(t, db, 2, "别家卷")
+	foreign := mustPlace(t, db, 2, "别家卷", nil)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		_, err := s.AllocateChapterSortOrder(ctx, tx, 1, &foreign.ID)

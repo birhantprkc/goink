@@ -86,10 +86,6 @@ export function CreateTimelineEntry(arg1, arg2) {
   return window['go']['app']['App']['CreateTimelineEntry'](arg1, arg2);
 }
 
-export function CreateVolume(arg1, arg2) {
-  return window['go']['app']['App']['CreateVolume'](arg1, arg2);
-}
-
 export function DeleteArcNode(arg1, arg2) {
   return window['go']['app']['App']['DeleteArcNode'](arg1, arg2);
 }
@@ -350,12 +346,12 @@ export function PlaceChapter(arg1) {
   return window['go']['app']['App']['PlaceChapter'](arg1);
 }
 
-export function RebuildNovelIndex(arg1) {
-  return window['go']['app']['App']['RebuildNovelIndex'](arg1);
+export function PlaceVolume(arg1) {
+  return window['go']['app']['App']['PlaceVolume'](arg1);
 }
 
-export function ReorderVolumes(arg1, arg2) {
-  return window['go']['app']['App']['ReorderVolumes'](arg1, arg2);
+export function RebuildNovelIndex(arg1) {
+  return window['go']['app']['App']['RebuildNovelIndex'](arg1);
 }
 
 export function RetryStartup() {

@@ -2718,6 +2718,24 @@ export namespace update {
 
 export namespace volume {
 	
+	export class PlaceInput {
+	    novel_id: number;
+	    source_volume_id?: number;
+	    name?: string;
+	    before_volume_id?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaceInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.novel_id = source["novel_id"];
+	        this.source_volume_id = source["source_volume_id"];
+	        this.name = source["name"];
+	        this.before_volume_id = source["before_volume_id"];
+	    }
+	}
 	export class Volume {
 	    id: number;
 	    novel_id: number;

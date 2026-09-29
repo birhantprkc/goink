@@ -22,5 +22,15 @@ type Volume struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime"                              json:"updated_at"`
 }
 
+// PlaceInput 描述创建或移动卷的目标位置。
+// SourceVolumeID 为空时创建新卷，此时 Name 必填；有值时移动已有卷，Name 必须为空。
+// BeforeVolumeID 为空表示追加到小说末尾。
+type PlaceInput struct {
+	NovelID        int64   `json:"novel_id"`
+	SourceVolumeID *int64  `json:"source_volume_id"`
+	Name           *string `json:"name"`
+	BeforeVolumeID *int64  `json:"before_volume_id"`
+}
+
 // TableName 指定 GORM 表名。
 func (Volume) TableName() string { return "volumes" }

@@ -17,7 +17,8 @@ import (
 func TestChapterStructureOperations(t *testing.T) {
 	app := setupTestApp(t)
 	novel := createTestNovel(t, app)
-	volume, err := app.CreateVolume(novel.ID, "第一卷")
+	volumeName := "第一卷"
+	volume, err := app.PlaceVolume(PlaceVolumeInput{NovelID: novel.ID, Name: &volumeName})
 	require.NoError(t, err)
 
 	firstTitle := "第一章"
@@ -44,9 +45,11 @@ func TestChapterStructureOperations(t *testing.T) {
 func TestPlaceChapterMovesWithinAndAcrossVolumes(t *testing.T) {
 	app := setupTestApp(t)
 	novel := createTestNovel(t, app)
-	firstVolume, err := app.CreateVolume(novel.ID, "第一卷")
+	firstVolumeName := "第一卷"
+	firstVolume, err := app.PlaceVolume(PlaceVolumeInput{NovelID: novel.ID, Name: &firstVolumeName})
 	require.NoError(t, err)
-	secondVolume, err := app.CreateVolume(novel.ID, "第二卷")
+	secondVolumeName := "第二卷"
+	secondVolume, err := app.PlaceVolume(PlaceVolumeInput{NovelID: novel.ID, Name: &secondVolumeName})
 	require.NoError(t, err)
 
 	titleA, titleB, titleC, titleD := "A", "B", "C", "D"

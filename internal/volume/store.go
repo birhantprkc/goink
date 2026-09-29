@@ -45,38 +45,97 @@ func (s *Store) pick(tx *gorm.DB) *gorm.DB {
 	return s.DB
 }
 
-// Create 新建卷，sort_order 取该小说当前最大值 +1（追加到末尾）。
-func (s *Store) Create(ctx context.Context, tx *gorm.DB, novelID int64, name string) (*Volume, error) {
+// Place 创建或移动卷，并将其放到锚点卷前或小说末尾。
+// 最终顺序会在同一事务内以两阶段写入落库，避免卷顺序唯一索引的中间态冲突。
+func (s *Store) Place(ctx context.Context, tx *gorm.DB, input PlaceInput) (*Volume, error) {
+	if input.SourceVolumeID == nil && input.Name == nil {
+		return nil, fmt.Errorf("创建卷时必须提供名称")
+	}
+	if input.SourceVolumeID != nil && input.Name != nil {
+		return nil, fmt.Errorf("移动卷时不能提供名称")
+	}
+
 	db := s.pick(tx)
-	var created *Volume
+	var placed Volume
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		taken, err := s.nameTaken(ctx, tx, novelID, name, 0)
+		volumes, err := s.ListByNovel(ctx, tx, input.NovelID)
 		if err != nil {
 			return err
 		}
-		if taken {
-			return ErrNameTaken
+
+		var source *Volume
+		if input.SourceVolumeID != nil {
+			for i := range volumes {
+				if volumes[i].ID == *input.SourceVolumeID {
+					source = &volumes[i]
+					break
+				}
+			}
+			if source == nil {
+				return fmt.Errorf("%w: %d", ErrNotFound, *input.SourceVolumeID)
+			}
+		} else {
+			taken, err := s.nameTaken(ctx, tx, input.NovelID, *input.Name, 0)
+			if err != nil {
+				return err
+			}
+			if taken {
+				return ErrNameTaken
+			}
+
+			maxSortOrder := 0
+			for _, v := range volumes {
+				if v.SortOrder > maxSortOrder {
+					maxSortOrder = v.SortOrder
+				}
+			}
+			created := Volume{NovelID: input.NovelID, Name: *input.Name, SortOrder: maxSortOrder + 1}
+			if err := tx.WithContext(ctx).Create(&created).Error; err != nil {
+				return fmt.Errorf("volume store: create: %w", err)
+			}
+			volumes = append(volumes, created)
+			source = &volumes[len(volumes)-1]
 		}
 
-		var maxSort int
-		if err := tx.WithContext(ctx).Model(&Volume{}).
-			Select("COALESCE(MAX(sort_order), 0)").
-			Where("novel_id = ?", novelID).
-			Scan(&maxSort).Error; err != nil {
-			return fmt.Errorf("volume store: max sort_order: %w", err)
+		if input.BeforeVolumeID != nil && source.ID == *input.BeforeVolumeID {
+			placed = *source
+			return nil
 		}
 
-		v := &Volume{NovelID: novelID, Name: name, SortOrder: maxSort + 1}
-		if err := tx.WithContext(ctx).Create(v).Error; err != nil {
-			return fmt.Errorf("volume store: create: %w", err)
+		orderedIDs := make([]int64, 0, len(volumes))
+		anchorFound := input.BeforeVolumeID == nil
+		for _, v := range volumes {
+			if v.ID == source.ID {
+				continue
+			}
+			if input.BeforeVolumeID != nil && v.ID == *input.BeforeVolumeID {
+				orderedIDs = append(orderedIDs, source.ID)
+				anchorFound = true
+			}
+			orderedIDs = append(orderedIDs, v.ID)
 		}
-		created = v
+		if !anchorFound {
+			return fmt.Errorf("%w: %d", ErrNotFound, *input.BeforeVolumeID)
+		}
+		if input.BeforeVolumeID == nil {
+			orderedIDs = append(orderedIDs, source.ID)
+		}
+		if err := s.writeOrder(ctx, tx, orderedIDs); err != nil {
+			return err
+		}
+		for i, id := range orderedIDs {
+			if id == source.ID {
+				placed = *source
+				placed.SortOrder = i + 1
+				break
+			}
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return created, nil
+	return &placed, nil
 }
 
 // Update 重命名卷。名称未变时视为无操作。
@@ -172,55 +231,25 @@ func (s *Store) LastByNovel(ctx context.Context, tx *gorm.DB, novelID int64) (*V
 	return &v, nil
 }
 
-// Reorder 按传入顺序重排全部卷的 sort_order（1-based）。
-//
-// volumeIDs 必须是该小说全部卷的 id 集合（全量重排），缺漏、重复或混入他卷都报错。
-// 两阶段写入：先把全部目标卷挪到负数区，再写目标值——
-// 否则逐个改写会与 (novel_id, sort_order) 唯一索引冲突。
-func (s *Store) Reorder(ctx context.Context, tx *gorm.DB, novelID int64, volumeIDs []int64) error {
-	db := s.pick(tx)
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		existing, err := s.ListByNovel(ctx, tx, novelID)
-		if err != nil {
-			return err
+// writeOrder 按传入的完整卷顺序更新 sort_order（1-based）。
+// 调用方负责在当前事务中验证全部 ID 的归属与唯一性。
+// 两阶段写入：先把全部目标卷挪到负数区，再写目标值，避免唯一索引冲突。
+func (s *Store) writeOrder(ctx context.Context, tx *gorm.DB, volumeIDs []int64) error {
+	for i, id := range volumeIDs {
+		if err := tx.WithContext(ctx).Model(&Volume{}).
+			Where("id = ?", id).
+			Update("sort_order", -(i + 1)).Error; err != nil {
+			return fmt.Errorf("volume store: reorder stage1: %w", err)
 		}
-		if len(existing) != len(volumeIDs) {
-			return fmt.Errorf("volume store: reorder 需传入全部卷（现有 %d，传入 %d）",
-				len(existing), len(volumeIDs))
+	}
+	for i, id := range volumeIDs {
+		if err := tx.WithContext(ctx).Model(&Volume{}).
+			Where("id = ?", id).
+			Update("sort_order", i+1).Error; err != nil {
+			return fmt.Errorf("volume store: reorder stage2: %w", err)
 		}
-		valid := make(map[int64]bool, len(existing))
-		for _, v := range existing {
-			valid[v.ID] = true
-		}
-		seen := make(map[int64]bool, len(volumeIDs))
-		for _, id := range volumeIDs {
-			if !valid[id] {
-				return fmt.Errorf("volume store: reorder 传入的卷 %d 不属于该小说", id)
-			}
-			if seen[id] {
-				return fmt.Errorf("volume store: reorder 传入的卷 %d 重复", id)
-			}
-			seen[id] = true
-		}
-
-		// 阶段 1：全部挪到负数区，腾空正数区
-		for i, id := range volumeIDs {
-			if err := tx.WithContext(ctx).Model(&Volume{}).
-				Where("id = ?", id).
-				Update("sort_order", -(i + 1)).Error; err != nil {
-				return fmt.Errorf("volume store: reorder stage1: %w", err)
-			}
-		}
-		// 阶段 2：写入目标顺序
-		for i, id := range volumeIDs {
-			if err := tx.WithContext(ctx).Model(&Volume{}).
-				Where("id = ?", id).
-				Update("sort_order", i+1).Error; err != nil {
-				return fmt.Errorf("volume store: reorder stage2: %w", err)
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // AllocateChapterSortOrder 为「新建章节」分配所属分组内的 sort_order，返回末尾位置。

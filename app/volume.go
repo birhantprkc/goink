@@ -6,11 +6,13 @@ import (
 	"github.com/sigpanic/goink/internal/volume"
 )
 
-// CreateVolume 为指定小说新建卷，追加到现有卷末尾。
-func (a *App) CreateVolume(novelID int64, name string) (*volume.Volume, error) {
-	v, err := a.volume.Create(a.ctx, nil, novelID, name)
+// PlaceVolume 创建或移动卷，并将其置于锚点卷前或小说末尾。
+type PlaceVolumeInput = volume.PlaceInput
+
+func (a *App) PlaceVolume(input PlaceVolumeInput) (*volume.Volume, error) {
+	v, err := a.volume.Place(a.ctx, nil, input)
 	if err != nil {
-		return nil, fmt.Errorf("create volume: %w", err)
+		return nil, fmt.Errorf("place volume: %w", err)
 	}
 	return v, nil
 }
@@ -38,12 +40,4 @@ func (a *App) GetVolumes(novelID int64) ([]volume.Volume, error) {
 		return nil, fmt.Errorf("list volumes: %w", err)
 	}
 	return volumes, nil
-}
-
-// ReorderVolumes 按传入的完整卷 ID 顺序重排指定小说的卷。
-func (a *App) ReorderVolumes(novelID int64, volumeIDs []int64) error {
-	if err := a.volume.Reorder(a.ctx, nil, novelID, volumeIDs); err != nil {
-		return fmt.Errorf("reorder volumes: %w", err)
-	}
-	return nil
 }

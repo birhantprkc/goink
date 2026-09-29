@@ -100,7 +100,7 @@ GORM model 层 6 张表 11 个字段已确认无遗漏。vec_novel_{id} 虚拟�
 | # | Commit message | 做什么 | 可编译 |
 |---|---|---|---|
 | 6.1 | `refactor(app): migrate existing chapter flows to IDs` | 既有章节、reader、timeline、story arc 的 App API，以及正文保存刷新与字数日志、导入、导出全部改按 chapter id；未来位置继续用 `reading_number`；新建默认追加到最后一卷，无卷则追加未分卷；App 写入引用批量校验章节归属；v160 对缺失旧列安全跳过 | ✅ |
-| 6.2 | `feat(volume): app-layer CRUD` | app: CreateVolume / UpdateVolume / DeleteVolume / GetVolumes / ReorderVolumes（删卷前检查关联章节）；后置，wails 绑定自动生成 | ❌ |
+| 6.2 | `feat(volume): app-layer CRUD` | app: PlaceVolume（创建或按锚点移动）/ UpdateVolume / DeleteVolume / GetVolumes（删卷前检查关联章节）；后置，wails 绑定自动生成 | ❌ |
 | 6.3 | `feat(chapter): app-layer delete/insert/move` | app: DeleteChapter（交叉引用检测拒绝 + 删文件 + 删记录 + RAG 清理）/ InsertChapter / MoveChapterToVolume；后置 | ❌ |
 
 ### L7 前端

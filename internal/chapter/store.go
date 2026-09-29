@@ -49,7 +49,7 @@ const (
 )
 
 // orderedByNovel 返回带卷排序信息的章节查询。必须按 volumes.sort_order 排序，
-// 不能只按 chapters.volume_id，否则 ReorderVolumes 不会改变章节的阅读顺序。
+// 不能只按 chapters.volume_id，否则卷移动不会改变章节的阅读顺序。
 func (s *Store) orderedByNovel(ctx context.Context, tx *gorm.DB, novelID int64) *gorm.DB {
 	return s.pick(tx).WithContext(ctx).
 		Model(&Chapter{}).

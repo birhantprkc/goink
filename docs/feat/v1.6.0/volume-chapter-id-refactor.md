@@ -337,11 +337,10 @@ AI 对已发生章节调用工具时直接传 `*_chapter_id`，工具内不做 n
 ### 10.2 CRUD 接口
 
 app 层：
-- `CreateVolume(novelID int64, name string) (*Volume, error)`
+- `PlaceVolume(input PlaceVolumeInput) (*Volume, error)` — 创建新卷或将已有卷放到 `before_volume_id` 前；空锚点表示末尾
 - `UpdateVolume(volumeID int64, name string) error`
 - `DeleteVolume(volumeID int64) error` — 删前检查是否有关联章节，有则拒绝
 - `GetVolumes(novelID int64) ([]Volume, error)`
-- `ReorderVolumes(novelID int64, volumeIDs []int64) error` — 批量更新 sort_order
 
 AI 通道（经 rw_tools，非 mcp_tool）：
 - AI 新建章节走 `chapters/new.md` 占位（见第十一节），可传 `volume_name` 让 rw_tools 反查 `volume_id`

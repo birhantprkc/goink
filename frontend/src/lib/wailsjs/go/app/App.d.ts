@@ -12,7 +12,6 @@ import {setting} from '../models';
 import {preference} from '../models';
 import {reader} from '../models';
 import {timeline} from '../models';
-import {volume} from '../models';
 import {llm} from '../models';
 import {pattern} from '../models';
 import {git} from '../models';
@@ -20,6 +19,7 @@ import {apperr} from '../models';
 import {session} from '../models';
 import {storage} from '../models';
 import {config} from '../models';
+import {volume} from '../models';
 import {writing} from '../models';
 import {imp} from '../models';
 import {skill} from '../models';
@@ -66,8 +66,6 @@ export function CreateStoryArc(arg1:number,arg2:app.CreateStoryArcInput):Promise
 export function CreateStyleSample(arg1:app.CreateStyleSampleInput):Promise<style.Sample>;
 
 export function CreateTimelineEntry(arg1:number,arg2:app.CreateTimelineEntryInput):Promise<timeline.TimelineEntry>;
-
-export function CreateVolume(arg1:number,arg2:string):Promise<volume.Volume>;
 
 export function DeleteArcNode(arg1:number,arg2:number):Promise<void>;
 
@@ -199,9 +197,9 @@ export function PickAndImportNovel():Promise<imp.ImportResult>;
 
 export function PlaceChapter(arg1:chapter.PlaceInput):Promise<chapter.Chapter>;
 
-export function RebuildNovelIndex(arg1:number):Promise<void>;
+export function PlaceVolume(arg1:volume.PlaceInput):Promise<volume.Volume>;
 
-export function ReorderVolumes(arg1:number,arg2:Array<number>):Promise<void>;
+export function RebuildNovelIndex(arg1:number):Promise<void>;
 
 export function RetryStartup():Promise<void>;
 

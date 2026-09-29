@@ -23,14 +23,16 @@
 1. 顶部卷轨道：按阅读顺序展示卷标签，提供新建、重命名、删除和拖拽排序。
 2. 下方章节列表：按卷分组展示章节，末尾固定显示“未分卷”组；每行显示实时章节号、标题、字数和操作菜单。
 
-选择、重排或删除卷会立即反映在下方分组和章节号中。章节拖到卷标签或“未分卷”组时，移动到对应分组末尾。
+选择、移动或删除卷会立即反映在下方分组和章节号中。章节拖到卷标签或“未分卷”组时，移动到对应分组末尾。
 
 ## 卷操作
 
-- 新建卷：创建空卷并追加到最后。
+- `PlaceVolume` 是唯一的卷结构编排入口：可创建新卷，也可移动已有卷；两者都指定目标位置。
+- 位置以 `BeforeVolumeID` 表达：提供锚点时放到该卷前；为空时追加到末尾。
+- 创建时 `SourceVolumeID` 为空且必须提供名称；移动时提供 `SourceVolumeID` 且不能提供名称。锚点卷必须属于当前小说。
+- 因此该 API 同时覆盖末尾创建、指定位置插入和卷标签拖拽排序；前端只传本次移动动作，不传重排后的完整 ID 数组。
 - 重命名：同一小说内卷名必须唯一。
 - 删除卷：仅当卷内没有章节时允许；有章节时提示用户先移动或删除章节。
-- 排序：拖拽卷标签进行全量重排，章节展示顺序随之更新。
 
 ## 章节操作
 
@@ -42,7 +44,7 @@
 
 ## App API 边界
 
-前端需要卷 CRUD 与排序 API，以及章节的 `PlaceChapter` 和删除 API。`PlaceChapter` 的 `source_chapter_id`、`target_volume_id` 与 `before_chapter_id` 都使用稳定 ID；可空 `target_volume_id` 明确表示未分卷组，避免使用 0 作为哨兵值。
+前端需要卷的 `PlaceVolume`、重命名、删除、查询 API，以及章节的 `PlaceChapter` 和删除 API。`PlaceVolume` 的 `source_volume_id` 与 `before_volume_id`、`PlaceChapter` 的 `source_chapter_id`、`target_volume_id` 与 `before_chapter_id` 都使用稳定 ID；可空 `target_volume_id` 明确表示未分卷组，避免使用 0 作为哨兵值。
 
 删除 API 的失败结果应能让前端展示引用类型和引用记录，而非只给出不可删除的通用提示。
 

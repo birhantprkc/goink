@@ -111,7 +111,8 @@ func TestUpdateChapterTitle(t *testing.T) {
 func TestCreateChapter_AppendsToLastVolume(t *testing.T) {
 	app := setupTestApp(t)
 	novel := createTestNovel(t, app)
-	volume, err := app.volume.Create(app.ctx, nil, novel.ID, "第一卷")
+	volumeName := "第一卷"
+	volume, err := app.PlaceVolume(PlaceVolumeInput{NovelID: novel.ID, Name: &volumeName})
 	require.NoError(t, err)
 
 	ch, err := app.CreateChapter(CreateChapterInput{NovelID: novel.ID, Title: "卷内章节"})
