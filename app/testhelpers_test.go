@@ -142,6 +142,7 @@ func setupTestApp(t *testing.T) *App {
 		writing:    writingStore,
 		volume:     volumeStore,
 	}
+	app.chapterService = chapter.NewService(chapterStore, volumeStore, chapter.NewReferenceStore(db), logger, nil, nil)
 
 	return app
 }

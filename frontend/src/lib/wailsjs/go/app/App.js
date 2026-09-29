@@ -94,6 +94,10 @@ export function DeleteArcNode(arg1, arg2) {
   return window['go']['app']['App']['DeleteArcNode'](arg1, arg2);
 }
 
+export function DeleteChapter(arg1, arg2) {
+  return window['go']['app']['App']['DeleteChapter'](arg1, arg2);
+}
+
 export function DeleteCharacter(arg1, arg2) {
   return window['go']['app']['App']['DeleteCharacter'](arg1, arg2);
 }
@@ -340,6 +344,10 @@ export function ListStyleSamples(arg1) {
 
 export function PickAndImportNovel() {
   return window['go']['app']['App']['PickAndImportNovel']();
+}
+
+export function PlaceChapter(arg1) {
+  return window['go']['app']['App']['PlaceChapter'](arg1);
 }
 
 export function RebuildNovelIndex(arg1) {

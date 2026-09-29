@@ -71,6 +71,8 @@ export function CreateVolume(arg1:number,arg2:string):Promise<volume.Volume>;
 
 export function DeleteArcNode(arg1:number,arg2:number):Promise<void>;
 
+export function DeleteChapter(arg1:number,arg2:number):Promise<app.DeleteChapterResult>;
+
 export function DeleteCharacter(arg1:number,arg2:number):Promise<void>;
 
 export function DeleteCover(arg1:number):Promise<void>;
@@ -194,6 +196,8 @@ export function ListSlashCommands(arg1:app.ListSlashCommandsInput):Promise<Array
 export function ListStyleSamples(arg1:app.ListStyleSamplesInput):Promise<storage.PageResult_github_com_sigpanic_goink_internal_style_Sample_>;
 
 export function PickAndImportNovel():Promise<imp.ImportResult>;
+
+export function PlaceChapter(arg1:chapter.PlaceInput):Promise<chapter.Chapter>;
 
 export function RebuildNovelIndex(arg1:number):Promise<void>;
 

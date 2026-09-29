@@ -131,6 +131,18 @@ func WriteFile(novelID int64, path, content string) error {
 	return nil
 }
 
+// RemoveFile 删除小说仓库中的文件。文件不存在时视为已删除，便于清理可选的大纲文件。
+func RemoveFile(novelID int64, path string) error {
+	fullPath, err := ResolvePath(path, novelID)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(fullPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("git: remove %s: %w", path, err)
+	}
+	return nil
+}
+
 var ErrPathEscape = errors.New("git: path escapes novel directory")
 
 func novelDir(novelID int64) string {

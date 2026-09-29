@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/sigpanic/goink/internal/chapter"
-	"github.com/sigpanic/goink/internal/git"
 )
 
 // ensureChapterIDsInNovel 确认章节 ID 均属于当前小说。
@@ -30,6 +29,24 @@ func (a *App) ensureChapterIDsInNovel(novelID int64, ids []int64) error {
 type CreateChapterInput struct {
 	NovelID int64  `json:"novel_id"`
 	Title   string `json:"title"`
+}
+
+// PlaceChapterInput 把新章节或已有章节放入目标章节组的指定位置。
+// SourceChapterID 为空时创建章节，此时 Title 必填；有值时移动已有章节，Title 必须为空。
+// TargetVolumeID 为空表示未分卷组，BeforeChapterID 为空表示追加到该组末尾。
+type PlaceChapterInput = chapter.PlaceInput
+
+// ChapterReference 是阻止删除章节的一条交叉引用。
+type ChapterReference struct {
+	Kind  string `json:"kind"`
+	ID    int64  `json:"id"`
+	Label string `json:"label"`
+}
+
+// DeleteChapterResult 描述章节删除的结果。References 非空时 Deleted 为 false。
+type DeleteChapterResult struct {
+	Deleted    bool               `json:"deleted"`
+	References []ChapterReference `json:"references"`
 }
 
 // ── 章节 ──────────────────────────────────────────────────
@@ -57,31 +74,23 @@ func (a *App) UpdateChapterTitle(novelID, chapterID int64, title string) error {
 // CreateChapter 创建新章节。同时创建空正文文件。
 // 新章节默认追加到最后一卷；尚未建卷时追加到未分卷组。
 func (a *App) CreateChapter(input CreateChapterInput) (*chapter.Chapter, error) {
-	lastVolume, err := a.volume.LastByNovel(a.ctx, nil, input.NovelID)
+	return a.chapterService.CreateDefault(a.ctx, input.NovelID, input.Title)
+}
+
+// PlaceChapter 新建或移动章节，并将其置于目标章节组的指定位置。
+func (a *App) PlaceChapter(input PlaceChapterInput) (*chapter.Chapter, error) {
+	return a.chapterService.Place(a.ctx, input)
+}
+
+// DeleteChapter 删除没有交叉引用的章节及其正文、大纲与派生索引。
+func (a *App) DeleteChapter(novelID, chapterID int64) (*DeleteChapterResult, error) {
+	result, err := a.chapterService.Delete(a.ctx, novelID, chapterID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
+		return nil, err
 	}
-
-	var volumeID *int64
-	if lastVolume != nil {
-		volumeID = &lastVolume.ID
+	refs := make([]ChapterReference, len(result.References))
+	for i, ref := range result.References {
+		refs[i] = ChapterReference{Kind: ref.Kind, ID: ref.ID, Label: ref.Label}
 	}
-
-	ch, err := a.chapter.Create(a.ctx, nil, input.NovelID, volumeID, input.Title)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
-
-	ch.FilePath = git.ChapterPath(ch.ID)
-	if err := git.WriteFile(input.NovelID, ch.FilePath, ""); err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
-
-	readingNumber, err := a.chapter.GetReadingNumberByID(a.ctx, nil, input.NovelID, ch.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
-	ch.ReadingNumber = readingNumber
-
-	return ch, nil
+	return &DeleteChapterResult{Deleted: result.Deleted, References: refs}, nil
 }

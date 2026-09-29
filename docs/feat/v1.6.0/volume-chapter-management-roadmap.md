@@ -14,10 +14,10 @@
 |---|---|---|---|
 | 1 | `docs(v1.6.0): define unified volume and chapter management` | 固化单一 Tab、章节操作语义和本路线。 | 文档 review |
 | 2 | `feat(app): expose volume management APIs` | 暴露卷的新建、重命名、删除、查询、排序 API；补 App 层测试，并重新生成 Wails 绑定。 | Go 测试、Wails 绑定生成 |
-| 3 | `feat(chapter): add structural management operations` | 增加目标分组新建、同组前后插入、跨卷移动与引用受保护删除；处理正文/大纲/RAG 生命周期并补测试。 | Go 测试 |
+| 3 | `feat(chapter): add structural management operations` | 增加统一的 `PlaceChapter`：创建或移动章节到目标分组的锚点位置，并提供引用受保护删除；处理正文/大纲/RAG 生命周期并补测试。 | Go 测试 |
 | 4 | `feat(frontend): add chapter management workspace` | 新增 ActivityBar 入口和全宽“章节管理”主区域，按卷及未分卷组展示实时编号；保留现有写作侧边栏章节列表。 | 前端 build/test |
 | 5 | `feat(frontend): manage volumes in chapter workspace` | 接入卷 CRUD、删除阻塞提示和拖拽排序。 | 前端 build/test |
-| 6 | `feat(frontend): manage chapter structure` | 接入指定分组新建、同组前后插入、跨卷移动、删除确认及引用清单；支持章节拖拽到卷或未分卷组。 | 前端 build/test、关键交互测试 |
+| 6 | `feat(frontend): manage chapter structure` | 接入 `PlaceChapter` 创建和拖拽编排、删除确认及引用清单；支持卷内和跨卷拖拽到指定位置、卷或未分卷组。 | 前端 build/test、关键交互测试 |
 
 ## 顺序约束
 

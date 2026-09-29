@@ -237,6 +237,146 @@ func (s *Store) Create(ctx context.Context, tx *gorm.DB, novelID int64, volumeID
 	return created, nil
 }
 
+// Place 将新章节或已有章节放入目标章节组的指定位置。
+// 所有顺序调整都在一个事务中完成，避免跨卷移动暴露中间的“先追加、再重排”状态。
+func (s *Store) Place(ctx context.Context, tx *gorm.DB, input PlaceInput) (*Chapter, error) {
+	db := s.pick(tx)
+	var placed Chapter
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if input.TargetVolumeID != nil {
+			if _, err := volume.NewStore(s.DB, s.logger).GetByID(ctx, tx, input.NovelID, *input.TargetVolumeID); err != nil {
+				return fmt.Errorf("get target volume: %w", err)
+			}
+		}
+
+		var before *Chapter
+		if input.BeforeChapterID != nil {
+			before = &Chapter{}
+			if err := tx.WithContext(ctx).Where("novel_id = ? AND id = ?", input.NovelID, *input.BeforeChapterID).First(before).Error; err != nil {
+				return fmt.Errorf("get before chapter: %w", err)
+			}
+			if !sameVolume(before.VolumeID, input.TargetVolumeID) {
+				return fmt.Errorf("before chapter does not belong to target group")
+			}
+		}
+
+		var source *Chapter
+		if input.SourceChapterID != nil {
+			source = &Chapter{}
+			if err := tx.WithContext(ctx).Where("novel_id = ? AND id = ?", input.NovelID, *input.SourceChapterID).First(source).Error; err != nil {
+				return fmt.Errorf("get source chapter: %w", err)
+			}
+			if before != nil && source.ID == before.ID {
+				placed = *source
+				return nil
+			}
+		}
+
+		if source != nil {
+			if err := s.closeGap(ctx, tx, input.NovelID, source); err != nil {
+				return err
+			}
+		}
+		position, err := s.placePosition(ctx, tx, input.NovelID, input.TargetVolumeID, before, source)
+		if err != nil {
+			return err
+		}
+		if err := s.makeRoom(ctx, tx, input.NovelID, input.TargetVolumeID, position, source); err != nil {
+			return err
+		}
+
+		if source == nil {
+			title := ""
+			if input.Title != nil {
+				title = *input.Title
+			}
+			placed = Chapter{NovelID: input.NovelID, VolumeID: input.TargetVolumeID, SortOrder: position, Title: title}
+			if err := tx.WithContext(ctx).Create(&placed).Error; err != nil {
+				return fmt.Errorf("create chapter: %w", err)
+			}
+			return nil
+		}
+		if err := tx.WithContext(ctx).Model(&Chapter{}).Where("id = ?", source.ID).
+			Updates(map[string]any{"volume_id": input.TargetVolumeID, "sort_order": position}).Error; err != nil {
+			return fmt.Errorf("place chapter: %w", err)
+		}
+		placed = *source
+		placed.VolumeID = input.TargetVolumeID
+		placed.SortOrder = position
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("chapter store: place: %w", err)
+	}
+	return &placed, nil
+}
+
+func (s *Store) placePosition(ctx context.Context, tx *gorm.DB, novelID int64, volumeID *int64, before, source *Chapter) (int, error) {
+	if before != nil {
+		position := before.SortOrder
+		if source != nil && sameVolume(source.VolumeID, volumeID) && source.SortOrder < before.SortOrder {
+			position--
+		}
+		return position, nil
+	}
+	q := s.groupQuery(ctx, tx, novelID, volumeID)
+	if source != nil {
+		q = q.Where("id <> ?", source.ID)
+	}
+	var maxSortOrder int
+	if err := q.Select("COALESCE(MAX(sort_order), 0)").Scan(&maxSortOrder).Error; err != nil {
+		return 0, fmt.Errorf("get target group position: %w", err)
+	}
+	return maxSortOrder + 1, nil
+}
+
+func (s *Store) closeGap(ctx context.Context, tx *gorm.DB, novelID int64, source *Chapter) error {
+	q := s.groupQuery(ctx, tx, novelID, source.VolumeID)
+	if err := q.Where("sort_order > ?", source.SortOrder).
+		Update("sort_order", gorm.Expr("sort_order - 1")).Error; err != nil {
+		return fmt.Errorf("close source group gap: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) makeRoom(ctx context.Context, tx *gorm.DB, novelID int64, volumeID *int64, position int, source *Chapter) error {
+	q := s.groupQuery(ctx, tx, novelID, volumeID).Where("sort_order >= ?", position)
+	if source != nil {
+		q = q.Where("id <> ?", source.ID)
+	}
+	if err := q.Update("sort_order", gorm.Expr("sort_order + 1")).Error; err != nil {
+		return fmt.Errorf("make target group room: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) groupQuery(ctx context.Context, tx *gorm.DB, novelID int64, volumeID *int64) *gorm.DB {
+	q := tx.WithContext(ctx).Model(&Chapter{}).Where("novel_id = ?", novelID)
+	if volumeID == nil {
+		return q.Where("volume_id IS NULL")
+	}
+	return q.Where("volume_id = ?", *volumeID)
+}
+
+func sameVolume(left, right *int64) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+// Delete 删除指定小说中的章节记录。
+func (s *Store) Delete(ctx context.Context, tx *gorm.DB, novelID, chapterID int64) error {
+	result := s.pick(tx).WithContext(ctx).Where("novel_id = ? AND id = ?", novelID, chapterID).Delete(&Chapter{})
+	if result.Error != nil {
+		return fmt.Errorf("chapter store: delete: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("chapter store: delete: %w", gorm.ErrRecordNotFound)
+	}
+	return nil
+}
+
 // SearchByNovel 按关键词搜索某小说的章节，匹配标题和摘要。
 func (s *Store) SearchByNovel(ctx context.Context, tx *gorm.DB, novelID int64, query string, limit int) ([]Chapter, error) {
 	var chapters []Chapter

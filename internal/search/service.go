@@ -485,6 +485,15 @@ func (s *Service) UpdateCachedChapter(novelID, chapterID int64, newContent strin
 	}
 }
 
+// DeleteCachedChapter 移除已删除章节的搜索缓存内容。
+func (s *Service) DeleteCachedChapter(novelID, chapterID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if chapMap, ok := s.cache[novelID]; ok {
+		delete(chapMap, chapterID)
+	}
+}
+
 // searchRAG 执行向量语义搜索。
 func (s *Service) searchRAG(ctx context.Context, novelID int64, query string) []Result {
 	if s.vectorStore == nil {
