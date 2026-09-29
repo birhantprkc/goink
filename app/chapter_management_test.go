@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sigpanic/goink/internal/character"
@@ -117,4 +118,20 @@ func TestDeleteChapterReturnsReferencesAndCleansFiles(t *testing.T) {
 	assert.True(t, errors.Is(err, os.ErrNotExist), "err = %v, want os.ErrNotExist", err)
 	_, err = git.ReadFile(novel.ID, git.OutlinePath(chapterID))
 	assert.True(t, errors.Is(err, os.ErrNotExist), "err = %v, want os.ErrNotExist", err)
+}
+
+func TestDeleteChapterRollsBackRecordWhenFileCleanupFails(t *testing.T) {
+	app := setupTestApp(t)
+	novel := createTestNovel(t, app)
+	ch := createTestChapter(t, app, novel.ID)
+
+	outlinePath, err := git.ResolvePath(git.OutlinePath(ch.ID), novel.ID)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(outlinePath, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(outlinePath, "blocked"), []byte("blocked"), 0o644))
+
+	_, err = app.DeleteChapter(novel.ID, ch.ID)
+	require.Error(t, err)
+	_, err = app.chapter.GetByID(app.ctx, nil, novel.ID, ch.ID)
+	require.NoError(t, err)
 }

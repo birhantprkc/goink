@@ -311,8 +311,8 @@ AI 对已发生章节调用工具时直接传 `*_chapter_id`，工具内不做 n
    - `character_relations.chapter_id`
    - 任一存在引用 → **拒绝删除**，返回引用清单（沿用 [delete_tools.go](../../../internal/mcp_tools/delete_tools.go) 对 character 关联的处理模式）
    - `writing_log.chapter_id` 有引用 → **不阻塞删除**（历史日志）
-4. 删文件 `chapters/id_{id}.md`、`outlines/id_{id}.md`
-5. 删 DB chapter 记录
+4. 启动外层 DB 事务，删 DB chapter 记录后删文件 `chapters/id_{id}.md`、`outlines/id_{id}.md`；任一文件清理失败则回滚章节记录
+5. 事务提交
 6. writing_log 的 `chapter_id` 变孤儿（指向已删除章节），查询时显示"已删除章节"
 7. RAG：调用 `DeleteChapterChunks(novelID, chapterID)`（[vector_store.go](../../../internal/rag/vector_store.go) 现有方法签名需改）
 8. InjectMessage 给 AI："第 N 章已删除。原引用此章的 timeline/arc_node/reader 记录已提示用户清理"

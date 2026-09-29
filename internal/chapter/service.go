@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"gorm.io/gorm"
+
 	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/git"
 	"github.com/sigpanic/goink/internal/volume"
@@ -101,15 +103,20 @@ func (s *Service) Delete(ctx context.Context, novelID, chapterID int64) (*Delete
 	if len(references) > 0 {
 		return &DeleteResult{References: references}, nil
 	}
-	if _, err := s.store.GetByID(ctx, nil, novelID, chapterID); err != nil {
-		return nil, fmt.Errorf("get chapter: %w", err)
-	}
-	for _, path := range []string{git.ChapterPath(chapterID), git.OutlinePath(chapterID)} {
-		if err := git.RemoveFile(novelID, path); err != nil {
-			return nil, fmt.Errorf("remove chapter file: %w", err)
+	// TODO: 如需跨文件系统与数据库的崩溃一致性，可先将文件原子移动到暂存目录，
+	// 待事务提交后再异步删除，并在启动时按 DB 状态恢复或清理暂存文件。
+	err = s.store.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := s.store.Delete(ctx, tx, novelID, chapterID); err != nil {
+			return err
 		}
-	}
-	if err := s.store.Delete(ctx, nil, novelID, chapterID); err != nil {
+		for _, path := range []string{git.ChapterPath(chapterID), git.OutlinePath(chapterID)} {
+			if err := git.RemoveFile(novelID, path); err != nil {
+				return fmt.Errorf("remove chapter file: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	if s.chunkCleaner != nil {
