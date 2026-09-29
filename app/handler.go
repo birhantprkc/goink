@@ -16,6 +16,7 @@ import (
 	"github.com/sigpanic/goink/internal/chapter"
 	"github.com/sigpanic/goink/internal/character"
 	"github.com/sigpanic/goink/internal/config"
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/llm"
 	"github.com/sigpanic/goink/internal/location"
 	"github.com/sigpanic/goink/internal/mcp_tools"
@@ -308,7 +309,13 @@ func (a *App) initWithConfig(cfg *config.AppConfig) error {
 	a.turnCommit = rollback.NewStore(db, a.logger)
 	a.writing = writing.NewStore(db, a.logger)
 	a.volume = volume.NewStore(db, a.logger)
-	a.chapterService = chapter.NewService(a.chapter, a.volume, chapter.NewReferenceStore(db), a.logger,
+	chapterDeletionGuard := deletion.NewGuard(
+		deletion.For(deletion.EntityChapter, a.timeline.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, a.storyarc.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, a.reader.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, a.character.ChapterDeletionBlockers),
+	)
+	a.chapterService = chapter.NewService(a.chapter, a.volume, chapterDeletionGuard, a.logger,
 		func() chapter.ChapterChunkCleaner {
 			vectorStore := a.vectorStore.Load()
 			if vectorStore == nil {

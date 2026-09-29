@@ -85,7 +85,22 @@ func TestDeleteChapterReturnsReferencesAndCleansFiles(t *testing.T) {
 	result, err := app.DeleteChapter(novel.ID, chapterID)
 	require.NoError(t, err)
 	assert.False(t, result.Deleted)
-	assert.Len(t, result.References, 6)
+	require.Len(t, result.References, 6)
+	assert.ElementsMatch(t, []string{
+		"timeline_source",
+		"timeline_resolved",
+		"story_arc",
+		"reader_planted",
+		"reader_revealed",
+		"character_relation",
+	}, []string{
+		result.References[0].Kind,
+		result.References[1].Kind,
+		result.References[2].Kind,
+		result.References[3].Kind,
+		result.References[4].Kind,
+		result.References[5].Kind,
+	})
 
 	require.NoError(t, app.db.Where("novel_id = ?", novel.ID).Delete(&timeline.TimelineEntry{}).Error)
 	require.NoError(t, app.db.Where("novel_id = ?", novel.ID).Delete(&storyarc.ArcNode{}).Error)

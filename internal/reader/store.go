@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/storage"
 )
 
@@ -73,4 +74,26 @@ func (s *Store) ListActive(ctx context.Context, novelID int64) ([]ReaderPerspect
 		return nil, fmt.Errorf("reader store: list active: %w", err)
 	}
 	return items, nil
+}
+
+// ChapterDeletionBlockers 返回引用指定章节的读者认知条目。
+func (s *Store) ChapterDeletionBlockers(ctx context.Context, novelID, chapterID int64) ([]deletion.Blocker, error) {
+	var items []ReaderPerspective
+	if err := s.DB.WithContext(ctx).
+		Where("novel_id = ? AND (planted_chapter_id = ? OR revealed_chapter_id = ?)", novelID, chapterID, chapterID).
+		Order("id ASC").
+		Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("reader store: query chapter deletion blockers: %w", err)
+	}
+
+	var blockers []deletion.Blocker
+	for _, item := range items {
+		if item.PlantedChapterID != nil && *item.PlantedChapterID == chapterID {
+			blockers = append(blockers, deletion.Blocker{Kind: "reader_planted", ID: item.ID, Label: item.Content})
+		}
+		if item.RevealedChapterID != nil && *item.RevealedChapterID == chapterID {
+			blockers = append(blockers, deletion.Blocker{Kind: "reader_revealed", ID: item.ID, Label: item.Content})
+		}
+	}
+	return blockers, nil
 }

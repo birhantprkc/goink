@@ -16,6 +16,7 @@ import (
 	"github.com/sigpanic/goink/internal/chapter"
 	"github.com/sigpanic/goink/internal/character"
 	"github.com/sigpanic/goink/internal/config"
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/llm"
 	"github.com/sigpanic/goink/internal/location"
 	"github.com/sigpanic/goink/internal/mcp_tools"
@@ -142,7 +143,13 @@ func setupTestApp(t *testing.T) *App {
 		writing:    writingStore,
 		volume:     volumeStore,
 	}
-	app.chapterService = chapter.NewService(chapterStore, volumeStore, chapter.NewReferenceStore(db), logger, nil, nil)
+	chapterDeletionGuard := deletion.NewGuard(
+		deletion.For(deletion.EntityChapter, timelineStore.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, storyarcStore.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, readerStore.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, characterStore.ChapterDeletionBlockers),
+	)
+	app.chapterService = chapter.NewService(chapterStore, volumeStore, chapterDeletionGuard, logger, nil, nil)
 
 	return app
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/git"
 	"github.com/sigpanic/goink/internal/volume"
 )
@@ -22,27 +23,27 @@ type ChapterCacheInvalidator interface {
 // DeleteResult 描述章节删除的结果。References 非空时 Deleted 为 false。
 type DeleteResult struct {
 	Deleted    bool               `json:"deleted"`
-	References []ChapterReference `json:"references"`
+	References []deletion.Blocker `json:"references"`
 }
 
 // Service 编排章节用例涉及的数据库、Git 文件与派生数据生命周期。
 type Service struct {
-	store      *Store
-	volumes    *volume.Store
-	references *ReferenceStore
-	logger     *slog.Logger
+	store         *Store
+	volumes       *volume.Store
+	deletionGuard *deletion.Guard
+	logger        *slog.Logger
 
 	chunkCleaner     func() ChapterChunkCleaner
 	cacheInvalidator func() ChapterCacheInvalidator
 }
 
 // NewService 创建章节领域服务。provider 允许可选基础设施在运行时延迟初始化。
-func NewService(store *Store, volumes *volume.Store, references *ReferenceStore, logger *slog.Logger,
+func NewService(store *Store, volumes *volume.Store, deletionGuard *deletion.Guard, logger *slog.Logger,
 	chunkCleaner func() ChapterChunkCleaner, cacheInvalidator func() ChapterCacheInvalidator) *Service {
 	return &Service{
 		store:            store,
 		volumes:          volumes,
-		references:       references,
+		deletionGuard:    deletionGuard,
 		logger:           logger,
 		chunkCleaner:     chunkCleaner,
 		cacheInvalidator: cacheInvalidator,
@@ -93,7 +94,7 @@ func (s *Service) Place(ctx context.Context, input PlaceInput) (*Chapter, error)
 
 // Delete 删除没有交叉引用的章节及其正文、大纲与派生索引。
 func (s *Service) Delete(ctx context.Context, novelID, chapterID int64) (*DeleteResult, error) {
-	references, err := s.references.ReferencesByChapter(ctx, novelID, chapterID)
+	references, err := s.deletionGuard.Blockers(ctx, deletion.Target{NovelID: novelID, Kind: deletion.EntityChapter, ID: chapterID})
 	if err != nil {
 		return nil, err
 	}

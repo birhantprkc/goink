@@ -1033,25 +1033,9 @@ export namespace chapter {
 		    return a;
 		}
 	}
-	export class ChapterReference {
-	    kind: string;
-	    id: number;
-	    label: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ChapterReference(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.kind = source["kind"];
-	        this.id = source["id"];
-	        this.label = source["label"];
-	    }
-	}
 	export class DeleteResult {
 	    deleted: boolean;
-	    references: ChapterReference[];
+	    references: deletion.Blocker[];
 	
 	    static createFrom(source: any = {}) {
 	        return new DeleteResult(source);
@@ -1060,7 +1044,7 @@ export namespace chapter {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.deleted = source["deleted"];
-	        this.references = this.convertValues(source["references"], ChapterReference);
+	        this.references = this.convertValues(source["references"], deletion.Blocker);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1254,6 +1238,27 @@ export namespace config {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace deletion {
+	
+	export class Blocker {
+	    kind: string;
+	    id: number;
+	    label: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Blocker(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.id = source["id"];
+	        this.label = source["label"];
+	    }
 	}
 
 }
