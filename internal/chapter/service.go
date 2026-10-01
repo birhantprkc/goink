@@ -74,17 +74,30 @@ func (s *Service) Place(ctx context.Context, input PlaceInput) (*Chapter, error)
 		return nil, fmt.Errorf("移动章节时不能提供标题")
 	}
 
-	placed, err := s.store.Place(ctx, nil, input)
-	if err != nil {
-		return nil, err
-	}
-
-	placed.FilePath = git.ChapterPath(placed.ID)
+	var placed *Chapter
 	if input.SourceChapterID == nil {
-		if err := git.WriteFile(input.NovelID, placed.FilePath, ""); err != nil {
-			_ = s.store.Delete(ctx, nil, input.NovelID, placed.ID)
-			return nil, fmt.Errorf("create chapter file: %w", err)
+		err := s.store.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var err error
+			placed, err = s.store.Place(ctx, tx, input)
+			if err != nil {
+				return err
+			}
+			placed.FilePath = git.ChapterPath(placed.ID)
+			if err := git.WriteFile(input.NovelID, placed.FilePath, ""); err != nil {
+				return fmt.Errorf("create chapter file: %w", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
+	} else {
+		var err error
+		placed, err = s.store.Place(ctx, nil, input)
+		if err != nil {
+			return nil, err
+		}
+		placed.FilePath = git.ChapterPath(placed.ID)
 	}
 	readingNumber, err := s.store.GetReadingNumberByID(ctx, nil, input.NovelID, placed.ID)
 	if err != nil {

@@ -565,11 +565,11 @@ func TestReadChapter_DisplayTitleAndTolerance(t *testing.T) {
 	}
 }
 
-// ── 补偿 ─────────────────────────────────────────────────
+// ── 创建回滚 ──────────────────────────────────────────────
 
 // 写文件失败（chapters 路径被文件占用导致 MkdirAll 失败）时，
-// 补偿删除刚建的章节记录，不留下孤儿记录。
-func TestNewChannel_CompensatesOnWriteFailure(t *testing.T) {
+// 外层事务回滚刚建的章节记录，不留下孤儿记录。
+func TestNewChannel_RollsBackOnWriteFailure(t *testing.T) {
 	db, tc, ctx := setupRWEnv(t)
 	vol := seedVolume(t, db, 1, "第一卷", 1)
 
@@ -587,7 +587,7 @@ func TestNewChannel_CompensatesOnWriteFailure(t *testing.T) {
 		t.Fatal("expected failure when chapters path is blocked")
 	}
 	if got := chapterCount(t, db, 1); got != 0 {
-		t.Errorf("chapter count = %d, want 0 (record compensated)", got)
+		t.Errorf("chapter count = %d, want 0 (record rolled back)", got)
 	}
 }
 

@@ -74,6 +74,28 @@ func TestPlaceChapterMovesWithinAndAcrossVolumes(t *testing.T) {
 	assert.Equal(t, []int64{third.ID, first.ID, second.ID, fourth.ID}, []int64{chapters[0].ID, chapters[1].ID, chapters[2].ID, chapters[3].ID})
 }
 
+func TestPlaceChapterRollsBackRecordAndOrderWhenBodyCreationFails(t *testing.T) {
+	app := setupTestApp(t)
+	novel := createTestNovel(t, app)
+	first := createTestChapter(t, app, novel.ID)
+
+	bodyPath, err := git.ResolvePath(git.ChapterPath(first.ID), novel.ID)
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(bodyPath))
+	require.NoError(t, os.Remove(filepath.Dir(bodyPath)))
+	require.NoError(t, os.WriteFile(filepath.Dir(bodyPath), []byte("blocked"), 0o644))
+
+	title := "无法创建"
+	_, err = app.PlaceChapter(PlaceChapterInput{NovelID: novel.ID, Title: &title, BeforeChapterID: &first.ID})
+	require.Error(t, err)
+
+	chapters, err := app.GetChapters(novel.ID)
+	require.NoError(t, err)
+	require.Len(t, chapters, 1)
+	assert.Equal(t, first.ID, chapters[0].ID)
+	assert.Equal(t, 1, chapters[0].SortOrder)
+}
+
 func TestDeleteChapterReturnsReferencesAndCleansFiles(t *testing.T) {
 	app := setupTestApp(t)
 	novel := createTestNovel(t, app)

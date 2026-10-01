@@ -259,8 +259,8 @@ AI 看到的 path 是 `chapters/id_{id}.md`（不补零，id 语义）。AI 从 
 **新建章节时**（path=`chapters/new.md` 占位）：
 1. AI 传 `chapters/new.md` + full_replace + content + title（+ 可选 volume_name）
 2. rw_tools 识别 path == "chapters/new.md" → 新建模式
-3. 建 chapter 记录（id 自增，sort_order = 该卷 MAX+1，volume_id 由 volume_name 反查或 NULL，title）
-4. 写文件 `chapters/id_{id}.md`
+3. 启动外层 DB 事务，建 chapter 记录（id 自增，sort_order = 该卷 MAX+1，volume_id 由 volume_name 反查或 NULL，title）并取得 id
+4. 在事务提交前写文件 `chapters/id_{id}.md`；写入失败则回滚记录及排序调整
 5. 响应返回真实 path `chapters/id_{id}.md` + id + chapter_number + volume_name
 6. AI 后续操作用返回的真实 path
 
