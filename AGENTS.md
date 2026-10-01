@@ -14,6 +14,7 @@ Goink 是一个使用 Wails（Go + React）的桌面 AI 网文写作助手。用
 - Commit message 使用英文、具体描述、无 emoji、无 `Co-Authored-By`，必须遵循 Conventional Commits：`<type>(<optional-scope>): <description>`。
 - 允许的 type 只有：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`、`revert`。
 - Commit message 必须包含 subject 和 body；subject 后空一行，再用 body 说明改了什么以及为什么改，不能只有 subject。
+- 需要多段 commit message 时，必须以 `git commit -F - <<'EOF'` heredoc 传入真实换行；不要在 `-m` 字符串中写字面量 `\\n`。
 - Issue 引用使用 body 末尾的 `Refs #NN`，不要使用 `fixes`、`closes` 或 `resolves`，除非用户明确要求关闭 issue。
 
 ## 开发流程与授权边界
@@ -37,7 +38,7 @@ Goink 是一个使用 Wails（Go + React）的桌面 AI 网文写作助手。用
 
 ## 代码库结构与约定
 
-- `app/`：Wails binding 层；导出方法构成前端 API。
+- `app/`：Wails binding 层；导出方法构成前端 API，仅做输入/输出 DTO 转换、调用内部能力和错误适配，不承载领域编排。
 - `internal/agent/`、`agentcfg/`、`llm/`、`session/`：LLM 对话、系统提示、传输和会话。
 - `internal/mcp_tools/`：MCP 工具；该目录的专门规则见 `internal/mcp_tools/AGENTS.md`。
 - `frontend/`：React 19 + TypeScript + Tailwind 4 + shadcn/ui。
@@ -47,6 +48,13 @@ Goink 是一个使用 Wails（Go + React）的桌面 AI 网文写作助手。用
 - 所有 ONNX、VectorStore、RefreshQueue 均按现有代码的全局 singleton 约定维护，不要随意引入第二个实例。
 - `target_chapter` 只用于排序，不要把它当作精确过滤条件。
 - 消息是 append-only，并区分 API、前端和完整审计查询路径。
+
+## 分层边界
+
+- 单一持久化介质内的简单 CRUD 可以采用 `App → Store → DB`；不要为没有业务编排的操作创建空壳 Service。
+- `Store` 只负责所属介质的读写、查询和事务内的数据一致性；例如章节的 `volume_id` / `sort_order` 调整属于 Store。
+- 涉及多个持久化介质、多个领域或有补偿流程的用例必须采用 `App → internal/<domain>.Service → Store/依赖`。Service 负责业务语义与编排，例如 DB 记录、Git 文件、交叉引用、向量索引和缓存的协调。
+- Service 不得反向依赖 `app/` 或 Wails；遇到可选基础设施（如向量库、搜索缓存）使用小接口或 provider 注入，避免领域包循环依赖。
 
 ## 修改安全边界
 

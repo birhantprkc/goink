@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
@@ -96,6 +98,54 @@ type ToolResult struct {
 	ErrKind  ErrKind         `json:"err_kind,omitempty"` // 取值见 ErrKind 常量
 	Metadata map[string]any  `json:"metadata,omitempty"`
 	Inject   []InjectMessage `json:"inject,omitempty"`
+}
+
+// businessError 用于需要先进入事务或辅助函数、再决定 ToolResult 的已知业务拒绝。
+// 它不包装底层依赖错误；后者必须保留为普通 error，交由 Registry 标为 system。
+type businessError struct {
+	message string
+}
+
+func (e *businessError) Error() string { return e.message }
+
+func businessErrorf(format string, args ...any) error {
+	return &businessError{message: fmt.Sprintf(format, args...)}
+}
+
+func isBusinessError(err error) bool {
+	var target *businessError
+	return errors.As(err, &target)
+}
+
+const maxSystemErrorDetailRunes = 300
+
+// compactErrorDetail 将给 LLM 的错误文本压缩为单行有限摘要。
+func compactErrorDetail(detail string) string {
+	detail = strings.Join(strings.Fields(detail), " ")
+	if runes := []rune(detail); len(runes) > maxSystemErrorDetailRunes {
+		detail = string(runes[:maxSystemErrorDetailRunes]) + "…"
+	}
+	if detail == "" {
+		detail = "未提供错误详情"
+	}
+	return detail
+}
+
+func compactToolResultError(result *ToolResult) *ToolResult {
+	if result != nil && result.Error != "" {
+		result.Error = compactErrorDetail(result.Error)
+	}
+	return result
+}
+
+// systemErrorResult 将意外执行错误转换为可供 LLM 理解的受限摘要。
+// 完整错误只写入日志；摘要保留工具包装的状态说明和底层原因，避免模型盲目重试。
+func systemErrorResult(err error) *ToolResult {
+	return &ToolResult{
+		Success: false,
+		Error:   "工具执行失败：" + compactErrorDetail(err.Error()),
+		ErrKind: ErrKindSystem,
+	}
 }
 
 // InjectMessage 由工具返回，agent loop 会后追加到对话流。固定 to_api=true, to_frontend=false。
@@ -227,10 +277,10 @@ func (r *Registry) OpenAI(allowed map[string]bool) []map[string]any {
 func (r *Registry) Execute(ctx context.Context, name string, rawArgs json.RawMessage, tc ToolContext, allowed map[string]bool) *ToolResult {
 	t, ok := r.Get(name)
 	if !ok {
-		return &ToolResult{Success: false, Error: "工具不存在: " + name}
+		return compactToolResultError(&ToolResult{Success: false, Error: "工具不存在: " + name})
 	}
 	if !allow(allowed, name) {
-		return &ToolResult{Success: false, Error: "工具禁止使用: " + name}
+		return compactToolResultError(&ToolResult{Success: false, Error: "工具禁止使用: " + name})
 	}
 
 	// 反序列化 + 校验
@@ -240,10 +290,10 @@ func (r *Registry) Execute(ctx context.Context, name string, rawArgs json.RawMes
 	dec := json.NewDecoder(bytes.NewReader(rawArgs))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(args); err != nil {
-		return &ToolResult{Success: false, Error: "参数格式不正确: " + err.Error(), ErrKind: ErrKindArgs}
+		return compactToolResultError(&ToolResult{Success: false, Error: "参数格式不正确: " + err.Error(), ErrKind: ErrKindArgs})
 	}
 	if err := r.validate.Struct(args); err != nil {
-		return &ToolResult{Success: false, Error: "参数校验失败: " + err.Error(), ErrKind: ErrKindArgs}
+		return compactToolResultError(&ToolResult{Success: false, Error: "参数校验失败: " + err.Error(), ErrKind: ErrKindArgs})
 	}
 
 	tc.RawArgs = rawArgs
@@ -264,10 +314,11 @@ func (r *Registry) Execute(ctx context.Context, name string, rawArgs json.RawMes
 
 	if execErr != nil {
 		r.logger.Error("tool execution failed", "tool", name, "error", execErr, "elapsed_ms", time.Since(t0).Milliseconds())
-		return &ToolResult{Success: false, Error: "服务器内部错误，请稍后重试", ErrKind: ErrKindSystem}
+		return systemErrorResult(execErr)
 	}
 
 	if result != nil {
+		compactToolResultError(result)
 		r.logger.Info("mcp tool executed", "tool", name, "elapsed_ms", time.Since(t0).Milliseconds(), "success", result.Success)
 	}
 	return result

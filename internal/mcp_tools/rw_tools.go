@@ -276,7 +276,10 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 		if ref.VolumeID != 0 {
 			v, err := volume.NewStore(tc.DB, tc.LoggerOrDefault()).GetByID(ctx, nil, tc.NovelID, ref.VolumeID)
 			if err != nil {
-				return &ToolResult{Success: false, Error: err.Error()}, nil
+				if errors.Is(err, volume.ErrNotFound) {
+					return &ToolResult{Success: false, Error: err.Error()}, nil
+				}
+				return nil, fmt.Errorf("query volume: %w", err)
 			}
 			volumeID = &v.ID
 		}
@@ -350,7 +353,8 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 		}
 	}
 
-	// DB 记录维护：新建则建记录拿 id（已有章节的标题更新延后到正文落盘之后，见下）
+	// 新建在外层事务中取得 id 并写入首个文件；文件失败时回滚记录与排序调整。
+	// 已有章节的标题更新仍延后到正文落盘之后，见下。
 	if ref.IsNew {
 		// 未指定卷：默认最后一卷；整本书无卷则创建未分卷章节。
 		if volumeID == nil {
@@ -362,22 +366,27 @@ func (t *EditTool) editChapterLike(ctx context.Context, a *EditArgs, tc ToolCont
 				volumeID = &last.ID
 			}
 		}
-		created, err := chStore.Create(ctx, nil, tc.NovelID, volumeID, a.Title)
-		if err != nil {
-			return nil, fmt.Errorf("create chapter record: %w", err)
+		var created *chapter.Chapter
+		if err := tc.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var err error
+			created, err = chStore.Create(ctx, tx, tc.NovelID, volumeID, a.Title)
+			if err != nil {
+				return fmt.Errorf("create chapter record: %w", err)
+			}
+			// 物理路径按刚分配的章节 id 重新计算（ref.ID 对新建为 0）。
+			physical = physicalRWPath(ref.IsOutline, created.ID)
+			if err := git.WriteFile(tc.NovelID, physical, proposed); err != nil {
+				return fmt.Errorf("write file: %w", err)
+			}
+			return nil
+		}); err != nil {
+			if errors.Is(err, git.ErrPathEscape) {
+				return &ToolResult{Success: false, Error: "路径非法: " + physical}, nil
+			}
+			return nil, err
 		}
 		ch = created
-		// 物理路径按刚分配的章节 id 重新计算（ref.ID 对新建为 0）
-		physical = physicalRWPath(ref.IsOutline, ch.ID)
-	}
-
-	// 写入物理文件；新建通道失败时补偿删除刚建的记录
-	if err := git.WriteFile(tc.NovelID, physical, proposed); err != nil {
-		if ref.IsNew {
-			if delErr := deleteChapterRecord(ctx, tc.DB, ch.ID); delErr != nil {
-				return nil, fmt.Errorf("write file: %w（补偿删除章节记录失败 record_id=%d: %v）", err, ch.ID, delErr)
-			}
-		}
+	} else if err := git.WriteFile(tc.NovelID, physical, proposed); err != nil {
 		if errors.Is(err, git.ErrPathEscape) {
 			return &ToolResult{Success: false, Error: "路径非法: " + physical}, nil
 		}
@@ -747,12 +756,6 @@ func getChapterRecord(ctx context.Context, db *gorm.DB, novelID, id int64) (*cha
 		return nil, err
 	}
 	return &ch, nil
-}
-
-// deleteChapterRecord 补偿：新建通道写文件失败时删除刚建的记录，避免孤儿记录。
-// 事务内腾位产生的 sort_order 空洞无害（仅作排序键），不回滚。
-func deleteChapterRecord(ctx context.Context, db *gorm.DB, id int64) error {
-	return db.WithContext(ctx).Delete(&chapter.Chapter{}, id).Error
 }
 
 // maintainChapterAfterEdit 章节正文落盘后的维护链路：向量刷新、搜索缓存、字数统计。

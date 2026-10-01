@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/git"
 	"github.com/sigpanic/goink/internal/storage"
 )
@@ -136,6 +137,28 @@ func (s *Store) ListAfter(ctx context.Context, novelID int64, chapterNum int) ([
 		return nil, fmt.Errorf("timeline store: list after: %w", err)
 	}
 	return entries, nil
+}
+
+// ChapterDeletionBlockers 返回引用指定章节的时间线条目。
+func (s *Store) ChapterDeletionBlockers(ctx context.Context, novelID, chapterID int64) ([]deletion.Blocker, error) {
+	var entries []TimelineEntry
+	if err := s.DB.WithContext(ctx).
+		Where("novel_id = ? AND (source_chapter_id = ? OR resolved_chapter_id = ?)", novelID, chapterID, chapterID).
+		Order("id ASC").
+		Find(&entries).Error; err != nil {
+		return nil, fmt.Errorf("timeline store: query chapter deletion blockers: %w", err)
+	}
+
+	var blockers []deletion.Blocker
+	for _, entry := range entries {
+		if entry.SourceChapterID != nil && *entry.SourceChapterID == chapterID {
+			blockers = append(blockers, deletion.Blocker{Kind: "timeline_source", ID: entry.ID, Label: entry.Title})
+		}
+		if entry.ResolvedChapterID != nil && *entry.ResolvedChapterID == chapterID {
+			blockers = append(blockers, deletion.Blocker{Kind: "timeline_resolved", ID: entry.ID, Label: entry.Title})
+		}
+	}
+	return blockers, nil
 }
 
 //具体来说 构造上下文的时候拿到前10条历史+未来100条，以及前边的所有pending的（状态异常了，也可以不给，等review的时候再传递），未来如果有显示已经完成的，也算作状态异常，状态异常的

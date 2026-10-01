@@ -28,7 +28,7 @@ func TestDeleteNovel_DropsVectorTable(t *testing.T) {
 	require.NoError(t, err, "create vector table")
 
 	// DeleteNovel 只用 VectorStore 的 db，不碰 embedder（测试环境无 ONNX），传 nil 即可。
-	a.vectorStore = rag.NewVectorStore(sqlDB, nil, a.logger)
+	a.vectorStore.Store(rag.NewVectorStore(sqlDB, nil, a.logger))
 
 	tableExists := func() bool {
 		var n int

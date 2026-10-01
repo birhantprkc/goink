@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/sigpanic/goink/internal/chapter"
-	"github.com/sigpanic/goink/internal/git"
 )
 
 // ensureChapterIDsInNovel 确认章节 ID 均属于当前小说。
@@ -32,6 +31,11 @@ type CreateChapterInput struct {
 	Title   string `json:"title"`
 }
 
+// PlaceChapterInput 把新章节或已有章节放入目标章节组的指定位置。
+// SourceChapterID 为空时创建章节，此时 Title 必填；有值时移动已有章节，Title 必须为空。
+// TargetVolumeID 为空表示未分卷组，BeforeChapterID 为空表示追加到该组末尾。
+type PlaceChapterInput = chapter.PlaceInput
+
 // ── 章节 ──────────────────────────────────────────────────
 
 // GetChapters 返回指定小说的章节列表，含文件路径。
@@ -57,31 +61,15 @@ func (a *App) UpdateChapterTitle(novelID, chapterID int64, title string) error {
 // CreateChapter 创建新章节。同时创建空正文文件。
 // 新章节默认追加到最后一卷；尚未建卷时追加到未分卷组。
 func (a *App) CreateChapter(input CreateChapterInput) (*chapter.Chapter, error) {
-	lastVolume, err := a.volume.LastByNovel(a.ctx, nil, input.NovelID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
+	return a.chapterService.CreateDefault(a.ctx, input.NovelID, input.Title)
+}
 
-	var volumeID *int64
-	if lastVolume != nil {
-		volumeID = &lastVolume.ID
-	}
+// PlaceChapter 新建或移动章节，并将其置于目标章节组的指定位置。
+func (a *App) PlaceChapter(input PlaceChapterInput) (*chapter.Chapter, error) {
+	return a.chapterService.Place(a.ctx, input)
+}
 
-	ch, err := a.chapter.Create(a.ctx, nil, input.NovelID, volumeID, input.Title)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
-
-	ch.FilePath = git.ChapterPath(ch.ID)
-	if err := git.WriteFile(input.NovelID, ch.FilePath, ""); err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
-
-	readingNumber, err := a.chapter.GetReadingNumberByID(a.ctx, nil, input.NovelID, ch.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chapter: %w", err)
-	}
-	ch.ReadingNumber = readingNumber
-
-	return ch, nil
+// DeleteChapter 删除没有交叉引用的章节及其正文、大纲与派生索引。
+func (a *App) DeleteChapter(novelID, chapterID int64) (*chapter.DeleteResult, error) {
+	return a.chapterService.Delete(a.ctx, novelID, chapterID)
 }

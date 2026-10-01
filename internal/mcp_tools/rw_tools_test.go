@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -564,11 +565,11 @@ func TestReadChapter_DisplayTitleAndTolerance(t *testing.T) {
 	}
 }
 
-// ── 补偿 ─────────────────────────────────────────────────
+// ── 创建回滚 ──────────────────────────────────────────────
 
 // 写文件失败（chapters 路径被文件占用导致 MkdirAll 失败）时，
-// 补偿删除刚建的章节记录，不留下孤儿记录。
-func TestNewChannel_CompensatesOnWriteFailure(t *testing.T) {
+// 外层事务回滚刚建的章节记录，不留下孤儿记录。
+func TestNewChannel_RollsBackOnWriteFailure(t *testing.T) {
 	db, tc, ctx := setupRWEnv(t)
 	vol := seedVolume(t, db, 1, "第一卷", 1)
 
@@ -586,7 +587,7 @@ func TestNewChannel_CompensatesOnWriteFailure(t *testing.T) {
 		t.Fatal("expected failure when chapters path is blocked")
 	}
 	if got := chapterCount(t, db, 1); got != 0 {
-		t.Errorf("chapter count = %d, want 0 (record compensated)", got)
+		t.Errorf("chapter count = %d, want 0 (record rolled back)", got)
 	}
 }
 
@@ -656,6 +657,12 @@ func TestExistingChapter_ContentRolledBackWhenTitleUpdateFails(t *testing.T) {
 	if res.Success {
 		t.Fatal("expected failure when title update is rejected")
 	}
+	if res.ErrKind != mcp_tools.ErrKindSystem {
+		t.Errorf("ErrKind = %q, want %q", res.ErrKind, mcp_tools.ErrKindSystem)
+	}
+	if !strings.Contains(res.Error, "正文已回退") {
+		t.Errorf("Error = %q, want confirmed rollback state for LLM", res.Error)
+	}
 
 	got, err := chapter.NewStore(db, slog.New(slog.NewTextHandler(io.Discard, nil))).GetByID(ctx, nil, 1, id)
 	if err != nil {
@@ -666,6 +673,25 @@ func TestExistingChapter_ContentRolledBackWhenTitleUpdateFails(t *testing.T) {
 	}
 	if got := mustReadFile(t, path); got != "夜色沉沉。" {
 		t.Errorf("file content = %q, want 夜色沉沉。", got)
+	}
+}
+
+func TestNewChapter_VolumeQueryFailureIsSystemError(t *testing.T) {
+	db, tc, ctx := setupRWEnv(t)
+	if err := db.Migrator().DropTable(&volume.Volume{}); err != nil {
+		t.Fatal(err)
+	}
+
+	res := execEdit(t, ctx, tc,
+		editArgsTitle("chapters/999/new.md", "full_replace", "新正文。", "新标题"))
+	if res.Success {
+		t.Fatal("expected volume query failure")
+	}
+	if res.ErrKind != mcp_tools.ErrKindSystem {
+		t.Errorf("ErrKind = %q, want %q", res.ErrKind, mcp_tools.ErrKindSystem)
+	}
+	if !strings.Contains(res.Error, "query volume") {
+		t.Errorf("Error = %q, want volume query context", res.Error)
 	}
 }
 

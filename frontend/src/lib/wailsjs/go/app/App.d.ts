@@ -19,6 +19,7 @@ import {apperr} from '../models';
 import {session} from '../models';
 import {storage} from '../models';
 import {config} from '../models';
+import {volume} from '../models';
 import {writing} from '../models';
 import {imp} from '../models';
 import {skill} from '../models';
@@ -68,6 +69,8 @@ export function CreateTimelineEntry(arg1:number,arg2:app.CreateTimelineEntryInpu
 
 export function DeleteArcNode(arg1:number,arg2:number):Promise<void>;
 
+export function DeleteChapter(arg1:number,arg2:number):Promise<chapter.DeleteResult>;
+
 export function DeleteCharacter(arg1:number,arg2:number):Promise<void>;
 
 export function DeleteCover(arg1:number):Promise<void>;
@@ -91,6 +94,8 @@ export function DeleteStoryArc(arg1:number,arg2:number):Promise<void>;
 export function DeleteStyleSample(arg1:app.DeleteStyleSampleInput):Promise<void>;
 
 export function DeleteTimelineEntry(arg1:number,arg2:number):Promise<void>;
+
+export function DeleteVolume(arg1:number,arg2:number):Promise<void>;
 
 export function DiscoverModels(arg1:string,arg2:string,arg3:string):Promise<Array<llm.ModelInfo>>;
 
@@ -164,6 +169,8 @@ export function GetTimelineEntries(arg1:number):Promise<Array<timeline.TimelineE
 
 export function GetVersion():Promise<string>;
 
+export function GetVolumes(arg1:number):Promise<Array<volume.Volume>>;
+
 export function GetWritingActivity(arg1:number):Promise<Array<writing.DailyActivity>>;
 
 export function GetWritingStats():Promise<writing.WritingStats>;
@@ -187,6 +194,10 @@ export function ListSlashCommands(arg1:app.ListSlashCommandsInput):Promise<Array
 export function ListStyleSamples(arg1:app.ListStyleSamplesInput):Promise<storage.PageResult_github_com_sigpanic_goink_internal_style_Sample_>;
 
 export function PickAndImportNovel():Promise<imp.ImportResult>;
+
+export function PlaceChapter(arg1:chapter.PlaceInput):Promise<chapter.Chapter>;
+
+export function PlaceVolume(arg1:volume.PlaceInput):Promise<volume.Volume>;
 
 export function RebuildNovelIndex(arg1:number):Promise<void>;
 
@@ -245,3 +256,5 @@ export function UpdateStoryArc(arg1:number,arg2:number,arg3:app.UpdateStoryArcIn
 export function UpdateStyleSample(arg1:app.UpdateStyleSampleInput):Promise<style.Sample>;
 
 export function UpdateTimelineEntry(arg1:number,arg2:number,arg3:app.UpdateTimelineEntryInput):Promise<void>;
+
+export function UpdateVolume(arg1:number,arg2:number,arg3:string):Promise<void>;

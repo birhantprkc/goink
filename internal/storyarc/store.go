@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/storage"
 )
 
@@ -222,4 +223,21 @@ func (s *Store) GetBreakpoint(ctx context.Context, arcID int64) (before []ArcNod
 	}
 
 	return before, pendings, nil
+}
+
+// ChapterDeletionBlockers 返回实际发生在指定章节的故事弧节点。
+func (s *Store) ChapterDeletionBlockers(ctx context.Context, novelID, chapterID int64) ([]deletion.Blocker, error) {
+	var nodes []ArcNode
+	if err := s.DB.WithContext(ctx).
+		Where("novel_id = ? AND actual_chapter_id = ?", novelID, chapterID).
+		Order("id ASC").
+		Find(&nodes).Error; err != nil {
+		return nil, fmt.Errorf("storyarc store: query chapter deletion blockers: %w", err)
+	}
+
+	blockers := make([]deletion.Blocker, 0, len(nodes))
+	for _, node := range nodes {
+		blockers = append(blockers, deletion.Blocker{Kind: "story_arc", ID: node.ID, Label: node.Title})
+	}
+	return blockers, nil
 }

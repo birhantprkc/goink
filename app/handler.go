@@ -16,6 +16,7 @@ import (
 	"github.com/sigpanic/goink/internal/chapter"
 	"github.com/sigpanic/goink/internal/character"
 	"github.com/sigpanic/goink/internal/config"
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/llm"
 	"github.com/sigpanic/goink/internal/location"
 	"github.com/sigpanic/goink/internal/mcp_tools"
@@ -68,16 +69,17 @@ type App struct {
 	cancelMgr     *agent.CancelManager
 	registry      *mcp_tools.Registry
 	approvals     *approval.Service
-	vectorStore   *rag.VectorStore
+	vectorStore   atomic.Pointer[rag.VectorStore]
 	searchService atomic.Pointer[search.Service]
 
-	novel      *novel.Store
-	preference *preference.Store
-	setting    *setting.Store
-	chapter    *chapter.Store
-	character  *character.Store
-	session    *session.Store
-	skill      *skill.Store
+	novel          *novel.Store
+	preference     *preference.Store
+	setting        *setting.Store
+	chapter        *chapter.Store
+	chapterService *chapter.Service
+	character      *character.Store
+	session        *session.Store
+	skill          *skill.Store
 	// remote 持有远程 skill 市场服务，用于 ListRemoteSkills / GetRemoteSkillContent / InstallRemoteSkill。
 	remote     *remote.Service
 	style      *style.Store
@@ -307,6 +309,27 @@ func (a *App) initWithConfig(cfg *config.AppConfig) error {
 	a.turnCommit = rollback.NewStore(db, a.logger)
 	a.writing = writing.NewStore(db, a.logger)
 	a.volume = volume.NewStore(db, a.logger)
+	chapterDeletionGuard := deletion.NewGuard(
+		deletion.For(deletion.EntityChapter, a.timeline.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, a.storyarc.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, a.reader.ChapterDeletionBlockers),
+		deletion.For(deletion.EntityChapter, a.character.ChapterDeletionBlockers),
+	)
+	a.chapterService = chapter.NewService(a.chapter, a.volume, chapterDeletionGuard, a.logger,
+		func() chapter.ChapterChunkCleaner {
+			vectorStore := a.vectorStore.Load()
+			if vectorStore == nil {
+				return nil
+			}
+			return vectorStore
+		},
+		func() chapter.ChapterCacheInvalidator {
+			if svc := a.searchService.Load(); svc != nil {
+				return svc
+			}
+			return nil
+		},
+	)
 	s, err := skill.NewStore(a.logger, config.UserSkillsDir())
 	if err != nil {
 		a.logger.Error("初始化 skill store 失败", "err", err)
@@ -357,17 +380,18 @@ func (a *App) initWithConfig(cfg *config.AppConfig) error {
 			return
 		}
 		rag.InitVectorStore(sqlDB, emb, a.logger)
-		a.vectorStore = rag.GetVectorStore()
+		vectorStore := rag.GetVectorStore()
+		a.vectorStore.Store(vectorStore)
 		a.logger.Info("向量存储初始化完成")
 
 		// 初始化搜索服务
 		svc = search.NewService(a.logger, a.character, a.location,
-			a.timeline, a.storyarc, a.chapter, a.reader, a.preference, a.setting, a.vectorStore)
+			a.timeline, a.storyarc, a.chapter, a.reader, a.preference, a.setting, vectorStore)
 		a.searchService.Store(svc)
 		a.agent.SetSearchService(svc)
 
 		// 初始化刷新队列并启动
-		rag.InitRefreshQueue(a.vectorStore, a.chapter, a.novel, a.logger)
+		rag.InitRefreshQueue(vectorStore, a.chapter, a.novel, a.logger)
 		rag.GetRefreshQueue().Start()
 
 		// 首次启动全量索引（已有向量则跳过）

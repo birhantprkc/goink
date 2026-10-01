@@ -1033,6 +1033,58 @@ export namespace chapter {
 		    return a;
 		}
 	}
+	export class DeleteResult {
+	    deleted: boolean;
+	    references: deletion.Blocker[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DeleteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.deleted = source["deleted"];
+	        this.references = this.convertValues(source["references"], deletion.Blocker);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PlaceInput {
+	    novel_id: number;
+	    source_chapter_id?: number;
+	    title?: string;
+	    target_volume_id?: number;
+	    before_chapter_id?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaceInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.novel_id = source["novel_id"];
+	        this.source_chapter_id = source["source_chapter_id"];
+	        this.title = source["title"];
+	        this.target_volume_id = source["target_volume_id"];
+	        this.before_chapter_id = source["before_chapter_id"];
+	    }
+	}
 
 }
 
@@ -1186,6 +1238,27 @@ export namespace config {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace deletion {
+	
+	export class Blocker {
+	    kind: string;
+	    id: number;
+	    label: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Blocker(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.id = source["id"];
+	        this.label = source["label"];
+	    }
 	}
 
 }
@@ -2620,6 +2693,71 @@ export namespace update {
 	        this.currentVersion = source["currentVersion"];
 	        this.latest = this.convertValues(source["latest"], ReleaseInfo);
 	        this.hasUpdate = source["hasUpdate"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace volume {
+	
+	export class PlaceInput {
+	    novel_id: number;
+	    source_volume_id?: number;
+	    name?: string;
+	    before_volume_id?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaceInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.novel_id = source["novel_id"];
+	        this.source_volume_id = source["source_volume_id"];
+	        this.name = source["name"];
+	        this.before_volume_id = source["before_volume_id"];
+	    }
+	}
+	export class Volume {
+	    id: number;
+	    novel_id: number;
+	    name: string;
+	    sort_order: number;
+	    // Go type: time
+	    created_at: any;
+	    // Go type: time
+	    updated_at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Volume(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.novel_id = source["novel_id"];
+	        this.name = source["name"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

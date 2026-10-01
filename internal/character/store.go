@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/sigpanic/goink/internal/deletion"
 	"github.com/sigpanic/goink/internal/storage"
 )
 
@@ -152,4 +153,21 @@ func (s *Store) Deactivate(ctx context.Context, relationID int64) error {
 		return fmt.Errorf("character store: deactivate: %w", gorm.ErrRecordNotFound)
 	}
 	return nil
+}
+
+// ChapterDeletionBlockers 返回关联到指定章节的角色关系历史。
+func (s *Store) ChapterDeletionBlockers(ctx context.Context, novelID, chapterID int64) ([]deletion.Blocker, error) {
+	var relations []CharacterRelation
+	if err := s.DB.WithContext(ctx).
+		Where("novel_id = ? AND chapter_id = ?", novelID, chapterID).
+		Order("id ASC").
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("character store: query chapter deletion blockers: %w", err)
+	}
+
+	blockers := make([]deletion.Blocker, 0, len(relations))
+	for _, relation := range relations {
+		blockers = append(blockers, deletion.Blocker{Kind: "character_relation", ID: relation.ID, Label: relation.RelationDescribe})
+	}
+	return blockers, nil
 }

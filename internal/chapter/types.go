@@ -22,5 +22,16 @@ type Chapter struct {
 	ReadingNumber int `gorm:"-" json:"reading_number"`
 }
 
+// PlaceInput 描述创建或移动章节的目标位置。
+// SourceChapterID 为空时创建章节，此时 Title 必填；有值时移动已有章节，Title 必须为空。
+// TargetVolumeID 为空表示未分卷组，BeforeChapterID 为空表示追加到目标组末尾。
+type PlaceInput struct {
+	NovelID         int64   `json:"novel_id"`
+	SourceChapterID *int64  `json:"source_chapter_id"`
+	Title           *string `json:"title"`
+	TargetVolumeID  *int64  `json:"target_volume_id"`
+	BeforeChapterID *int64  `json:"before_chapter_id"`
+}
+
 // TableName 指定 GORM 表名。
 func (Chapter) TableName() string { return "chapters" }

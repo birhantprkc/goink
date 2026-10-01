@@ -67,6 +67,9 @@ func (t *UpsertPreferenceTool) Execute(ctx context.Context, args any, tc ToolCon
 		if failed == nil {
 			return nil, fmt.Errorf("upsert preference: %w", err)
 		}
+		if !isBusinessError(failed.err) {
+			return nil, fmt.Errorf("upsert preference 第 %d 条 [%s]（事务已回滚）: %w", failed.index, failed.category, failed.err)
+		}
 		return &ToolResult{
 			Success: false,
 			Error:   fmt.Sprintf("第 %d 条偏好 [%s] 失败: %s", failed.index, failed.category, failed.err),
@@ -87,13 +90,13 @@ func upsertOnePreference(tx *gorm.DB, novelID int64, item UpsertPreferenceItem) 
 		var existing preference.PreferenceItem
 		if err := tx.First(&existing, *item.PreferenceID).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				return 0, fmt.Errorf("偏好条目 %d 不存在", *item.PreferenceID)
+				return 0, businessErrorf("偏好条目 %d 不存在", *item.PreferenceID)
 			}
 			return 0, fmt.Errorf("query preference: %w", err)
 		}
 		// 归属校验：只能改全局偏好或当前小说的偏好
 		if !existing.IsGlobal && existing.NovelID != novelID {
-			return 0, fmt.Errorf("偏好条目 %d 不属于当前小说", *item.PreferenceID)
+			return 0, businessErrorf("偏好条目 %d 不属于当前小说", *item.PreferenceID)
 		}
 		// PATCH 覆盖（指针字段判断"传没传"，值字段 required 总传值）
 		if item.Category != "" {

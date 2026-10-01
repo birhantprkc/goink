@@ -57,6 +57,14 @@ internal/
 frontend/         React 19 + TypeScript + Tailwind 4 + shadcn/ui
 ```
 
+### Layering
+
+- `app/` is an adapter layer: translate Wails DTOs, call internal capabilities, and adapt errors. Do not put domain orchestration in exported App methods.
+- Simple, single-persistence CRUD may use `App → Store → DB`; do not add empty Service layers.
+- A Store owns queries, mutations, and transactional invariants for its persistence medium. For example, chapter group ordering (`volume_id` and `sort_order`) belongs in `chapter.Store`.
+- Cross-resource or cross-domain use cases must use `App → internal/<domain>.Service → Store/dependencies`. Services own business semantics, compensation, and coordination across DB records, Git files, references, vector indexes, and caches.
+- Internal Services must not depend on `app/` or Wails. Inject optional infrastructure through small interfaces or providers to avoid package cycles.
+
 ## Key conventions
 
 - **Build tags**: All ONNX and sqlite-vec code uses `//go:build cgo` (see `internal/rag/`, `internal/mcp_tools/memory_tools.go`)

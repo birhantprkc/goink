@@ -90,6 +90,10 @@ export function DeleteArcNode(arg1, arg2) {
   return window['go']['app']['App']['DeleteArcNode'](arg1, arg2);
 }
 
+export function DeleteChapter(arg1, arg2) {
+  return window['go']['app']['App']['DeleteChapter'](arg1, arg2);
+}
+
 export function DeleteCharacter(arg1, arg2) {
   return window['go']['app']['App']['DeleteCharacter'](arg1, arg2);
 }
@@ -136,6 +140,10 @@ export function DeleteStyleSample(arg1) {
 
 export function DeleteTimelineEntry(arg1, arg2) {
   return window['go']['app']['App']['DeleteTimelineEntry'](arg1, arg2);
+}
+
+export function DeleteVolume(arg1, arg2) {
+  return window['go']['app']['App']['DeleteVolume'](arg1, arg2);
 }
 
 export function DiscoverModels(arg1, arg2, arg3) {
@@ -282,6 +290,10 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
+export function GetVolumes(arg1) {
+  return window['go']['app']['App']['GetVolumes'](arg1);
+}
+
 export function GetWritingActivity(arg1) {
   return window['go']['app']['App']['GetWritingActivity'](arg1);
 }
@@ -328,6 +340,14 @@ export function ListStyleSamples(arg1) {
 
 export function PickAndImportNovel() {
   return window['go']['app']['App']['PickAndImportNovel']();
+}
+
+export function PlaceChapter(arg1) {
+  return window['go']['app']['App']['PlaceChapter'](arg1);
+}
+
+export function PlaceVolume(arg1) {
+  return window['go']['app']['App']['PlaceVolume'](arg1);
 }
 
 export function RebuildNovelIndex(arg1) {
@@ -444,4 +464,8 @@ export function UpdateStyleSample(arg1) {
 
 export function UpdateTimelineEntry(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateTimelineEntry'](arg1, arg2, arg3);
+}
+
+export function UpdateVolume(arg1, arg2, arg3) {
+  return window['go']['app']['App']['UpdateVolume'](arg1, arg2, arg3);
 }

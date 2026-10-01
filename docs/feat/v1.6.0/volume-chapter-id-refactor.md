@@ -259,8 +259,8 @@ AI 看到的 path 是 `chapters/id_{id}.md`（不补零，id 语义）。AI 从 
 **新建章节时**（path=`chapters/new.md` 占位）：
 1. AI 传 `chapters/new.md` + full_replace + content + title（+ 可选 volume_name）
 2. rw_tools 识别 path == "chapters/new.md" → 新建模式
-3. 建 chapter 记录（id 自增，sort_order = 该卷 MAX+1，volume_id 由 volume_name 反查或 NULL，title）
-4. 写文件 `chapters/id_{id}.md`
+3. 启动外层 DB 事务，建 chapter 记录（id 自增，sort_order = 该卷 MAX+1，volume_id 由 volume_name 反查或 NULL，title）并取得 id
+4. 在事务提交前写文件 `chapters/id_{id}.md`；写入失败则回滚记录及排序调整
 5. 响应返回真实 path `chapters/id_{id}.md` + id + chapter_number + volume_name
 6. AI 后续操作用返回的真实 path
 
@@ -311,8 +311,8 @@ AI 对已发生章节调用工具时直接传 `*_chapter_id`，工具内不做 n
    - `character_relations.chapter_id`
    - 任一存在引用 → **拒绝删除**，返回引用清单（沿用 [delete_tools.go](../../../internal/mcp_tools/delete_tools.go) 对 character 关联的处理模式）
    - `writing_log.chapter_id` 有引用 → **不阻塞删除**（历史日志）
-4. 删文件 `chapters/id_{id}.md`、`outlines/id_{id}.md`
-5. 删 DB chapter 记录
+4. 启动外层 DB 事务，删 DB chapter 记录后删文件 `chapters/id_{id}.md`、`outlines/id_{id}.md`；任一文件清理失败则回滚章节记录
+5. 事务提交
 6. writing_log 的 `chapter_id` 变孤儿（指向已删除章节），查询时显示"已删除章节"
 7. RAG：调用 `DeleteChapterChunks(novelID, chapterID)`（[vector_store.go](../../../internal/rag/vector_store.go) 现有方法签名需改）
 8. InjectMessage 给 AI："第 N 章已删除。原引用此章的 timeline/arc_node/reader 记录已提示用户清理"
@@ -337,11 +337,10 @@ AI 对已发生章节调用工具时直接传 `*_chapter_id`，工具内不做 n
 ### 10.2 CRUD 接口
 
 app 层：
-- `CreateVolume(novelID int64, name string) (*Volume, error)`
+- `PlaceVolume(input PlaceVolumeInput) (*Volume, error)` — 创建新卷或将已有卷放到 `before_volume_id` 前；空锚点表示末尾
 - `UpdateVolume(volumeID int64, name string) error`
-- `DeleteVolume(volumeID int64) error` — 删前检查是否有关联章节，有则拒绝
+- `DeleteVolume(volumeID int64) error` — 删前检查是否有关联章节，有则拒绝；成功时清理可选卷纲文件
 - `GetVolumes(novelID int64) ([]Volume, error)`
-- `ReorderVolumes(novelID int64, volumeIDs []int64) error` — 批量更新 sort_order
 
 AI 通道（经 rw_tools，非 mcp_tool）：
 - AI 新建章节走 `chapters/new.md` 占位（见第十一节），可传 `volume_name` 让 rw_tools 反查 `volume_id`
